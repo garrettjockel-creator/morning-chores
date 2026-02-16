@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Admin Portal</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <style>
+    :root { --primary: #667eea; --primary-dark: #764ba2; --green: #22c55e; --gold: #fbbf24; --red: #ef4444; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f3f4f6; color: #1a1a2e; min-height: 100vh;
+    }
+
+    /* ===== PIN GATE ===== */
+    #pinGate {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);
+      padding: 20px;
+    }
+    .pin-card {
+      background: white; border-radius: 20px; padding: 32px;
+      max-width: 340px; width: 100%; text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .pin-card h2 { font-size: 22px; margin-bottom: 6px; }
+    .pin-card p { color: #888; font-size: 13px; margin-bottom: 20px; }
+    .pin-dots { display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; }
+    .pin-dot {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid #ccc; transition: all 0.2s;
+    }
+    .pin-dot.filled { background: #7c3aed; border-color: #7c3aed; }
+    .pin-dot.error { background: var(--red); border-color: var(--red); }
+    .pin-pad {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+      max-width: 240px; margin: 0 auto;
+    }
+    .pin-key {
+      background: #f3f4f6; border: none; border-radius: 12px;
+      padding: 14px; font-size: 20px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pin-key:active { background: #e5e7eb; }
+    .pin-key.back { font-size: 16px; color: #888; }
+    .pin-error { color: var(--red); font-size: 13px; margin-top: 12px; display: none; }
+
+    /* ===== ADMIN DASHBOARD ===== */
+    #dashboard { display: none; }
+    .admin-header {
+      background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);
+      color: white; padding: 20px 20px 24px;
+    }
+    .admin-header-top { display: flex; justify-content: space-between; align-items: center; }
+    .admin-header h1 { font-size: 22px; }
+    .family-count {
+      background: rgba(255,255,255,0.2); border-radius: 20px;
+      padding: 4px 14px; font-size: 13px; font-weight: 600;
+    }
+
+    .families-container { padding: 16px; }
+
+    .family-card {
+      background: white; border-radius: 16px; padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px;
+    }
+    .family-name { font-size: 20px; font-weight: 800; margin-bottom: 2px; }
+    .family-parent { font-size: 13px; color: #888; margin-bottom: 14px; }
+
+    .family-stats {
+      display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 14px;
+    }
+    .family-stat-box {
+      background: #f3f4f6; border-radius: 10px; padding: 8px 6px; text-align: center;
+    }
+    .family-stat-val { font-size: 18px; font-weight: 800; }
+    .family-stat-label { font-size: 10px; color: #888; margin-top: 2px; }
+
+    .family-chore-list { margin-bottom: 14px; }
+    .family-chore-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px;
+    }
+    .family-chore-item:last-child { border-bottom: none; }
+    .family-chore-icon { font-size: 18px; }
+    .family-chore-name { flex: 1; }
+    .family-chore-status { font-size: 16px; }
+
+    .family-meta { font-size: 12px; color: #aaa; margin-bottom: 12px; }
+
+    .family-links { display: flex; gap: 8px; }
+    .link-btn {
+      flex: 1; text-align: center; padding: 8px 12px;
+      border-radius: 10px; font-size: 13px; font-weight: 600;
+      text-decoration: none; color: white;
+    }
+    .link-btn.parent-link { background: var(--primary); }
+    .link-btn.kid-link { background: var(--green); }
+
+    .loading-msg { text-align: center; color: #888; padding: 40px 20px; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+  <!-- PIN GATE -->
+  <div id="pinGate">
+    <div class="pin-card">
+      <h2>Admin Portal</h2>
+      <p>Enter the admin PIN</p>
+      <div class="pin-dots">
+        <div class="pin-dot" id="d0"></div>
+        <div class="pin-dot" id="d1"></div>
+        <div class="pin-dot" id="d2"></div>
+        <div class="pin-dot" id="d3"></div>
+      </div>
+      <div class="pin-pad">
+        <button class="pin-key" onclick="pinPress('1')">1</button>
+        <button class="pin-key" onclick="pinPress('2')">2</button>
+        <button class="pin-key" onclick="pinPress('3')">3</button>
+        <button class="pin-key" onclick="pinPress('4')">4</button>
+        <button class="pin-key" onclick="pinPress('5')">5</button>
+        <button class="pin-key" onclick="pinPress('6')">6</button>
+        <button class="pin-key" onclick="pinPress('7')">7</button>
+        <button class="pin-key" onclick="pinPress('8')">8</button>
+        <button class="pin-key" onclick="pinPress('9')">9</button>
+        <button class="pin-key" disabled></button>
+        <button class="pin-key" onclick="pinPress('0')">0</button>
+        <button class="pin-key back" onclick="pinBack()">&#9003;</button>
+      </div>
+      <div class="pin-error" id="pinError">Wrong PIN. Try again.</div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+    <div class="admin-header">
+      <div class="admin-header-top">
+        <h1>Admin Portal</h1>
+        <span class="family-count" id="familyCount">0 families</span>
+      </div>
+    </div>
+    <div class="families-container" id="familiesContainer">
+      <div class="loading-msg" id="loadingMsg">Loading families...</div>
+    </div>
+  </div>
+
+<script>
+// ===== FIREBASE CONFIG =====
+const firebaseConfig = {
+  apiKey: "AIzaSyC08HJ3Q8yitpJyTG28nhrWhZBv2s3YDwE",
+  authDomain: "morning-chores-ee2f3.firebaseapp.com",
+  projectId: "morning-chores-ee2f3",
+  storageBucket: "morning-chores-ee2f3.firebasestorage.app",
+  messagingSenderId: "374643848407",
+  appId: "1:374643848407:web:642a57af25f97f037cec92"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const LEVELS = [
+  { level: 1,  xp: 0 },    { level: 2,  xp: 50 },
+  { level: 3,  xp: 150 },   { level: 4,  xp: 300 },
+  { level: 5,  xp: 500 },   { level: 6,  xp: 750 },
+  { level: 7,  xp: 1050 },  { level: 8,  xp: 1400 },
+  { level: 9,  xp: 1800 },  { level: 10, xp: 2300 },
+];
+
+// SHA-256 hash of "0000"
+const ADMIN_PIN_HASH = '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0';
+
+const BASE_URL = 'https://garrettjockel-creator.github.io/morning-chores/';
+
+// ===== PIN =====
+let pinBuffer = '';
+
+async function hashPin(pin) {
+  const data = new TextEncoder().encode(pin);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('d' + i).className = 'pin-dot' + (i < pinBuffer.length ? ' filled' : '');
+  }
+}
+
+function pinPress(digit) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += digit;
+  updateDots();
+  if (pinBuffer.length === 4) setTimeout(submitPin, 200);
+}
+
+function pinBack() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updateDots();
+  document.getElementById('pinError').style.display = 'none';
+}
+
+async function submitPin() {
+  const hash = await hashPin(pinBuffer);
+  if (hash === ADMIN_PIN_HASH) {
+    showDashboard();
+  } else {
+    const el = document.getElementById('pinError');
+    el.textContent = 'Wrong PIN. Try again.';
+    el.style.display = 'block';
+    for (let i = 0; i < 4; i++) document.getElementById('d' + i).classList.add('error');
+    setTimeout(() => {
+      for (let i = 0; i < 4; i++) document.getElementById('d' + i).classList.remove('error');
+    }, 600);
+    pinBuffer = '';
+    updateDots();
+  }
+}
+
+// ===== DASHBOARD =====
+function showDashboard() {
+  document.getElementById('pinGate').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  loadAllFamilies();
+}
+
+function getLevelFromXP(xp) {
+  let lvl = 1;
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (xp >= LEVELS[i].xp) { lvl = LEVELS[i].level; break; }
+  }
+  return lvl;
+}
+
+async function loadAllFamilies() {
+  const container = document.getElementById('familiesContainer');
+  const snap = await db.collection('families').get();
+  const count = snap.size;
+
+  document.getElementById('familyCount').textContent = count + ' famil' + (count === 1 ? 'y' : 'ies');
+  document.getElementById('loadingMsg').style.display = 'none';
+
+  const today = new Date().toISOString().split('T')[0];
+
+  snap.forEach(famDoc => {
+    const fid = famDoc.id;
+    const fam = famDoc.data();
+
+    // Create placeholder card immediately
+    const card = document.createElement('div');
+    card.className = 'family-card';
+    card.id = 'card-' + fid;
+    card.innerHTML = '<div class="family-name">' + escHtml(fam.childName || 'Unnamed') + '</div>' +
+      '<div class="family-parent">' + escHtml(fam.parentName || '') +
+      (fam.email ? ' &middot; ' + escHtml(fam.email) : '') + '</div>' +
+      '<div class="loading-msg" style="padding:10px 0;">Loading data...</div>';
+    container.appendChild(card);
+
+    // Load subcollections in parallel
+    loadFamilyData(fid, fam, today);
+  });
+}
+
+async function loadFamilyData(fid, fam, today) {
+  const famRef = db.collection('families').doc(fid);
+
+  const [profileDoc, choresSnap, compDoc] = await Promise.all([
+    famRef.collection('profile').doc('main').get(),
+    famRef.collection('chores').orderBy('order').get(),
+    famRef.collection('completions').doc(today).get(),
+  ]);
+
+  const profile = profileDoc.exists ? profileDoc.data() : { xp: 0, streak: 0 };
+  const chores = choresSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const activeChores = chores.filter(c => c.active !== false);
+  const doneToday = compDoc.exists && compDoc.data().done ? compDoc.data().done : [];
+
+  renderFamilyCard(fid, fam, profile, activeChores, doneToday);
+}
+
+function renderFamilyCard(fid, fam, profile, chores, doneToday) {
+  const card = document.getElementById('card-' + fid);
+  if (!card) return;
+
+  const xp = profile.xp || 0;
+  const streak = profile.streak || 0;
+  const level = getLevelFromXP(xp);
+  const doneCount = doneToday.length;
+  const totalCount = chores.length;
+
+  const theme = fam.theme || 'default';
+  const created = fam.createdAt ? new Date(fam.createdAt.seconds * 1000).toLocaleDateString() : '—';
+  const onboarded = fam.onboardingComplete ? 'Yes' : 'No';
+
+  let choreListHtml = '';
+  if (chores.length > 0) {
+    choreListHtml = '<div class="family-chore-list">' +
+      chores.map(c => {
+        const isDone = doneToday.includes(c.id);
+        return '<div class="family-chore-item">' +
+          '<span class="family-chore-icon">' + (c.icon || '📋') + '</span>' +
+          '<span class="family-chore-name">' + escHtml(c.title) + '</span>' +
+          '<span class="family-chore-status">' + (isDone ? '✅' : '⬜') + '</span>' +
+          '</div>';
+      }).join('') + '</div>';
+  }
+
+  card.innerHTML =
+    '<div class="family-name">' + escHtml(fam.childName || 'Unnamed') + '</div>' +
+    '<div class="family-parent">' + escHtml(fam.parentName || '') +
+      (fam.email ? ' &middot; ' + escHtml(fam.email) : '') + '</div>' +
+
+    '<div class="family-stats">' +
+      '<div class="family-stat-box"><div class="family-stat-val">' + streak + '</div><div class="family-stat-label">Streak</div></div>' +
+      '<div class="family-stat-box"><div class="family-stat-val">' + xp + '</div><div class="family-stat-label">Total XP</div></div>' +
+      '<div class="family-stat-box"><div class="family-stat-val">' + level + '</div><div class="family-stat-label">Level</div></div>' +
+      '<div class="family-stat-box"><div class="family-stat-val">' + doneCount + '/' + totalCount + '</div><div class="family-stat-label">Today</div></div>' +
+    '</div>' +
+
+    choreListHtml +
+
+    '<div class="family-meta">Theme: ' + escHtml(theme) + ' &middot; Created: ' + created + ' &middot; Onboarded: ' + onboarded + '</div>' +
+
+    '<div class="family-links">' +
+      '<a class="link-btn parent-link" href="' + BASE_URL + 'parent.html?f=' + fid + '" target="_blank">Parent Dashboard</a>' +
+      '<a class="link-btn kid-link" href="' + BASE_URL + 'app.html?f=' + fid + '" target="_blank">Kid App</a>' +
+    '</div>';
+}
+
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
