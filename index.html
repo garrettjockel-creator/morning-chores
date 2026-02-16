@@ -219,11 +219,10 @@
     .chat-container { display: flex; flex-direction: column; height: calc(100vh - 160px); }
     .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
     .chat-bubble {
-      max-width: 80%; padding: 10px 14px;
+      max-width: 85%; padding: 10px 14px;
       border-radius: 16px; font-size: 15px;
-      line-height: 1.4; word-wrap: break-word;
+      line-height: 1.4; word-wrap: break-word; cursor: pointer;
     }
-    .chat-bubble {  cursor: pointer; }
     .chat-bubble.assistant {
       background: white; color: #333;
       border-bottom-left-radius: 4px; align-self: flex-start;
@@ -232,19 +231,43 @@
       background: var(--primary); color: white;
       border-bottom-right-radius: 4px; align-self: flex-end;
     }
-    .chat-input-area { display: flex; gap: 8px; padding-top: 8px; flex-shrink: 0; }
-    .chat-input {
-      flex: 1; padding: 10px 14px; border: none;
-      border-radius: 20px; font-size: 16px;
-      background: white; outline: none;
+    .chat-prompts {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      justify-content: center; padding: 8px 0; flex-shrink: 0;
     }
-    .chat-send-btn {
-      background: var(--primary); color: white; border: none;
-      border-radius: 20px; padding: 10px 18px;
-      font-size: 15px; font-weight: 700; cursor: pointer;
+    .chat-prompt-btn {
+      background: white; border: none; border-radius: 16px;
+      padding: 10px 14px; font-size: 14px; font-weight: 600;
+      color: #333; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.2s;
+    }
+    .chat-prompt-btn:active { transform: scale(0.95); }
+    .mic-area { display: flex; flex-direction: column; align-items: center; padding: 8px 0; flex-shrink: 0; }
+    .mic-btn {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: white; border: 3px solid var(--primary);
+      font-size: 28px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.2s;
+    }
+    .mic-btn:active { transform: scale(0.95); }
+    .mic-btn.listening {
+      background: var(--primary); border-color: white;
+      animation: micPulse 1s ease infinite;
+    }
+    @keyframes micPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(102,126,234,0.4); }
+      50% { box-shadow: 0 0 0 12px rgba(102,126,234,0); }
+    }
+    .mic-label {
+      font-size: 12px; color: rgba(255,255,255,0.7);
+      margin-top: 6px; font-weight: 600;
     }
     .chat-typing {
-      display: none; padding: 6px 0;
+      display: none; padding: 6px 0; text-align: center;
       color: rgba(255,255,255,0.7); font-style: italic; font-size: 13px;
     }
     .chat-disabled {
@@ -669,22 +692,33 @@ function getLevelInfo(xp) {
 }
 
 // ===== TEXT TO SPEECH =====
+let bestVoice = null;
+function loadVoices() {
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return;
+  // Prefer premium/enhanced natural voices on iOS/macOS
+  bestVoice =
+    voices.find(v => v.name.includes('Samantha') && v.name.includes('Enhanced')) ||
+    voices.find(v => v.name.includes('Samantha') && v.name.includes('Premium')) ||
+    voices.find(v => v.name === 'Samantha') ||
+    voices.find(v => v.lang.startsWith('en') && (v.name.includes('Enhanced') || v.name.includes('Premium'))) ||
+    voices.find(v => v.lang.startsWith('en') && v.localService) ||
+    voices.find(v => v.lang.startsWith('en'));
+}
+if (window.speechSynthesis) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
 function speak(text, btn) {
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 0.85;
-  utter.pitch = 1.1;
-  // Try to pick a good English voice
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v => v.name.includes('Samantha')) ||
-    voices.find(v => v.lang.startsWith('en') && v.name.includes('Female')) ||
-    voices.find(v => v.lang.startsWith('en'));
-  if (preferred) utter.voice = preferred;
+  utter.rate = 0.9;
+  utter.pitch = 1.05;
+  if (bestVoice) utter.voice = bestVoice;
   if (btn) { btn.classList.add('speaking'); utter.onend = () => btn.classList.remove('speaking'); }
   window.speechSynthesis.speak(utter);
 }
-// Preload voices
-if (window.speechSynthesis) window.speechSynthesis.getVoices();
 
 // ===== FIREBASE =====
 async function initFirebase() {
@@ -853,6 +887,17 @@ function renderBadges() {
     }).join('') + '</div>';
 }
 
+const CHAT_PROMPTS = [
+  { emoji: '🤔', text: 'What should I do today?' },
+  { emoji: '📖', text: 'Tell me a Bible story' },
+  { emoji: '😴', text: "I'm bored" },
+  { emoji: '🙏', text: 'Pray with me' },
+  { emoji: '😊', text: 'I did something good today!' },
+  { emoji: '💪', text: 'I finished all my chores!' },
+  { emoji: '🌟', text: 'Tell me something cool' },
+  { emoji: '❤️', text: 'Tell me about Jesus' },
+];
+
 function renderChat() {
   const el = document.getElementById('chatContent');
   if (config.workerUrl && !config.workerUrl.startsWith('http')) {
@@ -865,16 +910,18 @@ function renderChat() {
   el.innerHTML =
     '<div class="chat-container">' +
     '<div class="chat-messages" id="chatMessages">' +
-    '<div class="chat-bubble assistant" onclick="speak(this.textContent)">Hi! I\'m Helper! What should we do today? 😊</div>' +
+    '<div class="chat-bubble assistant" onclick="speak(this.textContent)">Hi! I\'m Helper! Tap a button or hold the microphone to talk to me! 😊</div>' +
     '</div>' +
     '<div class="chat-typing" id="chatTyping">Helper is thinking...</div>' +
-    '<div class="chat-input-area">' +
-    '<input type="text" class="chat-input" id="chatInput" placeholder="Say something..." maxlength="200">' +
-    '<button class="chat-send-btn" onclick="sendChat()">Send</button>' +
+    '<div class="chat-prompts" id="chatPrompts">' +
+    CHAT_PROMPTS.map(p =>
+      '<button class="chat-prompt-btn" onclick="sendChatText(\'' + p.text.replace(/'/g, "\\'") + '\')">' + p.emoji + ' ' + p.text + '</button>'
+    ).join('') +
+    '</div>' +
+    '<div class="mic-area">' +
+    '<button class="mic-btn" id="micBtn" onclick="toggleMic()">🎤</button>' +
+    '<div class="mic-label" id="micLabel">Tap to talk</div>' +
     '</div></div>';
-  document.getElementById('chatInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') sendChat();
-  });
 }
 
 let activeFilter = 'all';
@@ -1013,19 +1060,23 @@ function showBadgeUnlock(badge) {
 function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
 
 // ===== CHAT =====
-async function sendChat() {
-  const input = document.getElementById('chatInput');
-  if (!input) return;
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
+let micRecognition = null;
+let micListening = false;
+
+async function sendChatText(text) {
+  if (!text || !text.trim()) return;
+  text = text.trim();
 
   const msgs = document.getElementById('chatMessages');
+  const prompts = document.getElementById('chatPrompts');
+  if (prompts) prompts.style.display = 'none';
+
   const userDiv = document.createElement('div');
   userDiv.className = 'chat-bubble user';
   userDiv.textContent = text;
   userDiv.onclick = function() { speak(this.textContent); };
   msgs.appendChild(userDiv);
+  speak(text);
   chatHistory.push({ role: 'user', content: text });
   msgs.scrollTop = msgs.scrollHeight;
 
@@ -1048,6 +1099,7 @@ async function sendChat() {
       errDiv.textContent = "Worker error (status " + res.status + "): " + rawText.substring(0, 200);
       msgs.appendChild(errDiv);
       document.getElementById('chatTyping').style.display = 'none';
+      if (prompts) prompts.style.display = '';
       msgs.scrollTop = msgs.scrollHeight;
       return;
     }
@@ -1074,7 +1126,59 @@ async function sendChat() {
   }
 
   document.getElementById('chatTyping').style.display = 'none';
+  if (prompts) prompts.style.display = '';
   msgs.scrollTop = msgs.scrollHeight;
+}
+
+function toggleMic() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    const label = document.getElementById('micLabel');
+    if (label) label.textContent = 'Voice not supported on this device';
+    return;
+  }
+
+  if (micListening && micRecognition) {
+    micRecognition.stop();
+    return;
+  }
+
+  micRecognition = new SpeechRecognition();
+  micRecognition.lang = 'en-US';
+  micRecognition.interimResults = false;
+  micRecognition.maxAlternatives = 1;
+
+  const btn = document.getElementById('micBtn');
+  const label = document.getElementById('micLabel');
+
+  micRecognition.onstart = function() {
+    micListening = true;
+    if (btn) btn.classList.add('listening');
+    if (label) label.textContent = 'Listening...';
+  };
+
+  micRecognition.onresult = function(e) {
+    const transcript = e.results[0][0].transcript;
+    sendChatText(transcript);
+  };
+
+  micRecognition.onerror = function(e) {
+    micListening = false;
+    if (btn) btn.classList.remove('listening');
+    if (e.error === 'no-speech') {
+      if (label) label.textContent = "I didn't hear anything. Try again!";
+    } else {
+      if (label) label.textContent = 'Tap to talk';
+    }
+  };
+
+  micRecognition.onend = function() {
+    micListening = false;
+    if (btn) btn.classList.remove('listening');
+    if (label) label.textContent = 'Tap to talk';
+  };
+
+  micRecognition.start();
 }
 
 // ===== INIT =====
