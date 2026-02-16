@@ -1574,10 +1574,12 @@ function showHelperReply(text) {
   function onDone() {
     if (callbackFired) return;
     callbackFired = true;
+    stopSpeaking();
     if (avatar) avatar.classList.remove('talking');
     chatBusy = false;
     if (convoMode) {
-      setTimeout(function() { if (convoMode) startListening(); }, 400);
+      // Longer delay lets mobile audio system fully release before mic activates
+      setTimeout(function() { if (convoMode && !chatBusy) startListening(); }, 800);
     }
   }
 
@@ -1658,21 +1660,36 @@ function startListening() {
   micRecognition.onerror = function(e) {
     micListening = false;
     if (btn) btn.classList.remove('listening');
-    if (e.error === 'no-speech' && convoMode) {
+    if ((e.error === 'no-speech' || e.error === 'aborted') && convoMode && !chatBusy) {
+      gotResult = true; // prevent onend from also retrying
       if (label) label.textContent = "I didn't hear you. Listening again...";
-      setTimeout(function() { if (convoMode) startListening(); }, 500);
+      setTimeout(function() { if (convoMode && !chatBusy) startListening(); }, 600);
     } else if (e.error === 'not-allowed' || e.error === 'service-not-available') {
       endConversation();
       if (label) label.textContent = 'Microphone not available';
     }
   };
 
+  var gotResult = false;
+  var prevOnResult = micRecognition.onresult;
+  micRecognition.onresult = function(e) {
+    gotResult = true;
+    prevOnResult(e);
+  };
+
   micRecognition.onend = function() {
     micListening = false;
     if (btn) btn.classList.remove('listening');
+    // Auto-retry if recognition ended silently (common on mobile Safari)
+    if (!gotResult && convoMode && !chatBusy) {
+      setTimeout(function() { if (convoMode && !chatBusy) startListening(); }, 600);
+    }
   };
 
-  micRecognition.start();
+  try { micRecognition.start(); } catch(e) {
+    // If start fails, retry after a delay
+    setTimeout(function() { if (convoMode && !chatBusy) startListening(); }, 1000);
+  }
 }
 
 function interruptHelper() {
