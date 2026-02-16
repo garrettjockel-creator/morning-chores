@@ -735,6 +735,18 @@ function getLevelInfo(xp) {
 // ===== TEXT TO SPEECH =====
 let currentAudio = null;
 let onSpeakDone = null;
+let audioUnlocked = false;
+
+// iOS requires a user-gesture-initiated play() to unlock audio.
+// We use a shared Audio element that gets unlocked on first tap.
+var sharedAudio = new Audio();
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  // Play silent audio to unlock on iOS
+  sharedAudio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+MYxAAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxDsAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+  sharedAudio.play().then(function() { audioUnlocked = true; }).catch(function() {});
+}
 
 function stopSpeaking() {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
@@ -742,8 +754,12 @@ function stopSpeaking() {
   onSpeakDone = null;
 }
 
+function finishSpeak(btn) {
+  if (btn) btn.classList.remove('speaking');
+  if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
+}
+
 function speak(text, btn, callback) {
-  // Stop any current speech
   stopSpeaking();
   if (!text) { if (callback) callback(); return; }
 
@@ -751,7 +767,7 @@ function speak(text, btn, callback) {
 
   // Try cloud TTS if worker URL is configured
   if (config.workerUrl) {
-    let ttsUrl = config.workerUrl;
+    var ttsUrl = config.workerUrl;
     if (!ttsUrl.startsWith('http')) ttsUrl = 'https://' + ttsUrl;
     ttsUrl = ttsUrl.replace(/\/$/, '') + '/tts';
 
@@ -772,10 +788,21 @@ function speak(text, btn, callback) {
       currentAudio.onended = function() {
         URL.revokeObjectURL(url);
         currentAudio = null;
-        if (btn) btn.classList.remove('speaking');
-        if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
+        finishSpeak(btn);
       };
-      currentAudio.play();
+      currentAudio.onerror = function() {
+        URL.revokeObjectURL(url);
+        currentAudio = null;
+        speakBrowser(text, btn);
+      };
+      var playPromise = currentAudio.play();
+      if (playPromise) {
+        playPromise.catch(function() {
+          // Audio play blocked (iOS autoplay restriction) — fall back to browser
+          currentAudio = null;
+          speakBrowser(text, btn);
+        });
+      }
     })
     .catch(function() {
       speakBrowser(text, btn);
@@ -792,10 +819,8 @@ function speakBrowser(text, btn) {
   utter.pitch = 1.05;
   utter.lang = 'en-US';
   if (btn) btn.classList.add('speaking');
-  utter.onend = function() {
-    if (btn) btn.classList.remove('speaking');
-    if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
-  };
+  utter.onend = function() { finishSpeak(btn); };
+  utter.onerror = function() { finishSpeak(btn); };
   window.speechSynthesis.speak(utter);
 }
 
@@ -1234,7 +1259,8 @@ function toggleConversation() {
     // End conversation
     endConversation();
   } else {
-    // Start conversation
+    // Start conversation — unlock audio on this user gesture
+    unlockAudio();
     convoMode = true;
     var btn = document.getElementById('micBtn');
     var label = document.getElementById('micLabel');
