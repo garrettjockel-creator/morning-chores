@@ -198,22 +198,49 @@
     .all-done-msg { font-size: 20px; font-weight: 800; color: var(--green-dark); margin-top: 4px; }
     .all-done-sub { font-size: 13px; color: #888; margin-top: 4px; }
 
-    /* ===== BADGES TAB ===== */
-    .badges-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+    /* ===== REWARDS TAB ===== */
+    .rewards-balance {
+      text-align: center; padding: 16px; margin-bottom: 16px;
+      background: rgba(255,255,255,0.15); border-radius: 16px;
     }
-    .badge-card {
-      background: white; border-radius: 14px;
-      padding: 14px 6px; text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      transition: all 0.3s;
+    .rewards-balance-label { font-size: 14px; color: rgba(255,255,255,0.8); font-weight: 600; }
+    .rewards-balance-num { font-size: 42px; font-weight: 900; color: white; }
+    .rewards-balance-unit { font-size: 16px; color: var(--gold); font-weight: 700; }
+    .reward-card {
+      background: white; border-radius: 16px; padding: 18px;
+      margin-bottom: 14px; display: flex; align-items: center; gap: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08); position: relative;
+      overflow: hidden;
     }
-    .badge-card.locked { opacity: 0.45; filter: grayscale(1); }
-    .badge-emoji { font-size: 34px; }
-    .badge-name { font-size: 11px; font-weight: 700; color: #333; margin-top: 4px; line-height: 1.2; }
-    .badge-card.locked .badge-name { color: #999; }
+    .reward-card.affordable { border: 3px solid var(--green); }
+    .reward-emoji { font-size: 36px; flex-shrink: 0; }
+    .reward-info { flex: 1; }
+    .reward-name { font-size: 17px; font-weight: 800; color: #333; }
+    .reward-cost { font-size: 13px; color: #666; font-weight: 600; margin-top: 2px; }
+    .reward-progress-bar {
+      height: 8px; background: #e5e7eb; border-radius: 4px;
+      overflow: hidden; margin-top: 8px;
+    }
+    .reward-progress-fill {
+      height: 100%; border-radius: 4px; transition: width 0.5s ease;
+      background: linear-gradient(90deg, var(--primary), var(--green));
+    }
+    .reward-progress-fill.full { background: var(--green); }
+    .reward-pct { font-size: 11px; color: #999; font-weight: 600; margin-top: 3px; text-align: right; }
+    .reward-redeem-btn {
+      background: var(--green); color: white; border: none;
+      border-radius: 12px; padding: 10px 18px; font-size: 14px;
+      font-weight: 800; cursor: pointer; flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .reward-redeem-btn:active { transform: scale(0.95); }
+    .reward-redeem-btn:disabled {
+      background: #d1d5db; cursor: default;
+    }
+    .reward-locked-label {
+      font-size: 12px; color: #999; font-weight: 700; flex-shrink: 0;
+      text-align: center; min-width: 60px;
+    }
 
     /* ===== CHAT TAB ===== */
     .chat-container {
@@ -482,9 +509,9 @@
         </div>
       </div>
 
-      <!-- BADGES -->
-      <div id="badgesTab" class="tab-panel">
-        <div id="badgesContainer"></div>
+      <!-- REWARDS -->
+      <div id="rewardsTab" class="tab-panel">
+        <div id="rewardsContainer"></div>
       </div>
 
       <!-- CHAT -->
@@ -504,8 +531,8 @@
       <button class="tab-btn active" data-tab="chores" onclick="switchTab('chores')">
         <span class="tab-icon">⭐</span>Chores
       </button>
-      <button class="tab-btn" data-tab="badges" onclick="switchTab('badges')">
-        <span class="tab-icon">🏆</span>Badges
+      <button class="tab-btn" data-tab="rewards" onclick="switchTab('rewards')">
+        <span class="tab-icon">🎁</span>Rewards
       </button>
       <button class="tab-btn" data-tab="chat" onclick="switchTab('chat')">
         <span class="tab-icon">💬</span>Chat
@@ -526,13 +553,14 @@
     </div>
   </div>
 
-  <!-- Badge Modal -->
-  <div class="modal-overlay" id="badgeModal">
+  <!-- Redeem Confirmation Modal -->
+  <div class="modal-overlay" id="redeemModal">
     <div class="modal-content">
-      <div class="modal-emoji" id="badgeModalEmoji">⭐</div>
-      <div class="modal-title">Badge Unlocked!</div>
-      <div class="modal-subtitle" id="badgeModalName"></div>
-      <button class="modal-btn" onclick="closeModal('badgeModal')">Cool!</button>
+      <div class="modal-emoji" id="redeemModalEmoji">🎁</div>
+      <div class="modal-title" id="redeemModalTitle">Redeem Reward?</div>
+      <div class="modal-subtitle" id="redeemModalSub"></div>
+      <button class="modal-btn" onclick="confirmRedeem()" style="background:var(--green);">Yes, Redeem!</button>
+      <button class="modal-btn" onclick="closeModal('redeemModal')" style="background:#aaa;margin-top:8px;">Not Yet</button>
     </div>
   </div>
 
@@ -579,21 +607,10 @@ const LEVELS = [
   { level: 10, xp: 2300, title: 'Ultimate Champion' },
 ];
 
-const BADGES = [
-  { id: 'first-chore', emoji: '⭐', name: 'First Step',       desc: 'Complete your first chore' },
-  { id: 'clean-sweep', emoji: '🧹', name: 'Clean Sweep',      desc: 'Complete all chores in a day' },
-  { id: 'streak-3',    emoji: '🔥', name: '3-Day Streak',     desc: '3 days in a row!' },
-  { id: 'streak-7',    emoji: '💥', name: 'Week Warrior',     desc: '7-day streak!' },
-  { id: 'streak-14',   emoji: '💪', name: 'Two-Week Titan',   desc: '14-day streak!' },
-  { id: 'streak-30',   emoji: '👑', name: 'Monthly Master',   desc: '30-day streak!' },
-  { id: 'level-3',     emoji: '🌟', name: 'Super Helper',     desc: 'Reach Level 3' },
-  { id: 'level-5',     emoji: '⚔️', name: 'Mighty Worker',    desc: 'Reach Level 5' },
-  { id: 'level-8',     emoji: '🏰', name: 'Hero Badge',       desc: 'Reach Level 8' },
-  { id: 'xp-100',      emoji: '💎', name: 'XP Hunter',        desc: 'Earn 100 XP' },
-  { id: 'xp-500',      emoji: '🏆', name: 'XP Master',        desc: 'Earn 500 XP' },
-  { id: 'goal-setter', emoji: '🎯', name: 'Goal Setter',      desc: 'Set your first goal' },
-  { id: 'goal-getter', emoji: '✅', name: 'Goal Getter',      desc: 'Complete a goal' },
-  { id: 'bible-10',    emoji: '📖', name: 'Bible Reader',     desc: 'Read the Bible 10 times' },
+const REWARDS = [
+  { id: 'reward-20',  emoji: '💵', name: '$20 Reward',  cost: 500,  dollars: 20 },
+  { id: 'reward-50',  emoji: '💰', name: '$50 Reward',  cost: 1000, dollars: 50 },
+  { id: 'reward-200', emoji: '🤑', name: '$200 Reward', cost: 2000, dollars: 200 },
 ];
 
 const FILTERS = [
@@ -918,7 +935,7 @@ async function toggleChore(choreId) {
         speak('All chores done! Bonus 25 points! You now have ' + li.inLvl + ' out of ' + li.need + ' points to reach level ' + (li.level + 1) + '! Great job today!');
       }, 200);
     }
-    checkBadges();
+    renderRewards();
   } else {
     // Uncomplete — deduct XP if it was awarded
     todayDoc.done.splice(idx, 1);
@@ -940,34 +957,7 @@ async function toggleChore(choreId) {
 }
 
 // ===== BADGES =====
-function checkBadges() {
-  const info = getLevelInfo(profile.xp);
-  const checks = {
-    'first-chore': profile.totalChoresCompleted >= 1,
-    'clean-sweep': profile.lastAllDoneDate !== null,
-    'streak-3': profile.streak >= 3,
-    'streak-7': profile.streak >= 7,
-    'streak-14': profile.streak >= 14,
-    'streak-30': profile.streak >= 30,
-    'level-3': info.level >= 3,
-    'level-5': info.level >= 5,
-    'level-8': info.level >= 8,
-    'xp-100': profile.xp >= 100,
-    'xp-500': profile.xp >= 500,
-    'goal-setter': (profile.goalsSet || 0) >= 1,
-    'goal-getter': (profile.goalsCompleted || 0) >= 1,
-    'bible-10': (profile.bibleReadCount || 0) >= 10,
-  };
-  let newBadge = null;
-  for (const [id, earned] of Object.entries(checks)) {
-    if (earned && !profile.badges.includes(id)) {
-      profile.badges.push(id);
-      if (!newBadge) newBadge = BADGES.find(b => b.id === id);
-    }
-  }
-  if (newBadge) setTimeout(() => showBadgeUnlock(newBadge), 600);
-  renderBadges();
-}
+// (badges removed — replaced by reward store)
 
 // ===== RENDERING =====
 function updateTopBar() {
@@ -1010,15 +1000,63 @@ function updateProgress() {
   else banner.classList.remove('visible');
 }
 
-function renderBadges() {
-  document.getElementById('badgesContainer').innerHTML =
-    '<div class="badges-grid">' + BADGES.map(b => {
-      const earned = profile.badges.includes(b.id);
-      const spk = earned ? b.name + '. ' + b.desc : b.name + '. Not earned yet.';
-      return '<div class="badge-card ' + (earned ? '' : 'locked') + '" onclick="speak(\'' + spk.replace(/'/g, "\\'") + '\')">' +
-      '<div class="badge-emoji">' + b.emoji + '</div>' +
-      '<div class="badge-name">' + b.name + '</div></div>';
-    }).join('') + '</div>';
+let pendingReward = null;
+
+function renderRewards() {
+  var html = '<div class="rewards-balance">' +
+    '<div class="rewards-balance-label">Your Points</div>' +
+    '<div class="rewards-balance-num">' + profile.xp + '</div>' +
+    '<div class="rewards-balance-unit">points</div>' +
+    '</div>';
+  REWARDS.forEach(function(r) {
+    var affordable = profile.xp >= r.cost;
+    var pct = Math.min(100, Math.round((profile.xp / r.cost) * 100));
+    var remaining = Math.max(0, r.cost - profile.xp);
+    html += '<div class="reward-card' + (affordable ? ' affordable' : '') + '" onclick="speak(\'' +
+      (affordable ? r.name + '. You can redeem this!' : r.name + '. ' + remaining + ' more points to go!') + '\')">' +
+      '<div class="reward-emoji">' + r.emoji + '</div>' +
+      '<div class="reward-info">' +
+      '<div class="reward-name">' + r.name + '</div>' +
+      '<div class="reward-cost">' + r.cost + ' points</div>' +
+      '<div class="reward-progress-bar"><div class="reward-progress-fill' + (affordable ? ' full' : '') + '" style="width:' + pct + '%"></div></div>' +
+      '<div class="reward-pct">' + (affordable ? 'Ready!' : pct + '% — ' + remaining + ' points to go') + '</div>' +
+      '</div>';
+    if (affordable) {
+      html += '<button class="reward-redeem-btn" onclick="event.stopPropagation();startRedeem(\'' + r.id + '\')">Redeem</button>';
+    } else {
+      html += '<div class="reward-locked-label">Keep going!</div>';
+    }
+    html += '</div>';
+  });
+  document.getElementById('rewardsContainer').innerHTML = html;
+}
+
+function startRedeem(rewardId) {
+  var r = REWARDS.find(function(x) { return x.id === rewardId; });
+  if (!r || profile.xp < r.cost) return;
+  pendingReward = r;
+  document.getElementById('redeemModalEmoji').textContent = r.emoji;
+  document.getElementById('redeemModalTitle').textContent = 'Redeem ' + r.name + '?';
+  document.getElementById('redeemModalSub').textContent = 'This will use ' + r.cost + ' of your points.';
+  document.getElementById('redeemModal').classList.add('visible');
+  speak('Do you want to redeem ' + r.name + '? This will use ' + r.cost + ' points.');
+}
+
+async function confirmRedeem() {
+  if (!pendingReward || profile.xp < pendingReward.cost) {
+    closeModal('redeemModal');
+    return;
+  }
+  profile.xp -= pendingReward.cost;
+  // Track redemptions
+  if (!profile.redemptions) profile.redemptions = [];
+  profile.redemptions.push({ id: pendingReward.id, name: pendingReward.name, dollars: pendingReward.dollars, date: new Date().toISOString() });
+  await saveProfile();
+  closeModal('redeemModal');
+  speak('Awesome! You redeemed ' + pendingReward.name + '! Ask Mom or Dad to get your reward!');
+  pendingReward = null;
+  renderRewards();
+  updateTopBar();
 }
 
 const CHAT_PROMPTS = [
@@ -1185,12 +1223,7 @@ function showLevelUp(level) {
   speak('Level Up! You reached Level ' + level + ', ' + (info ? info.title : '') + '!');
 }
 
-function showBadgeUnlock(badge) {
-  document.getElementById('badgeModalEmoji').textContent = badge.emoji;
-  document.getElementById('badgeModalName').textContent = badge.name + ' — ' + badge.desc;
-  document.getElementById('badgeModal').classList.add('visible');
-  speak('Badge unlocked! ' + badge.name + '. ' + badge.desc);
-}
+// (showBadgeUnlock removed — replaced by reward store)
 
 function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
 
@@ -1411,7 +1444,7 @@ async function init() {
     updateTopBar();
     renderChores();
     updateProgress();
-    renderBadges();
+    renderRewards();
     renderChat();
     renderActivities();
 
