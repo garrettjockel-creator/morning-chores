@@ -84,12 +84,14 @@
     /* ===== TAB CONTENT ===== */
     #tabContent {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       padding: 14px 16px 16px;
     }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
+    #activitiesTab, .activity-grid, .activity-card, .filter-bar, .filter-btn { touch-action: pan-y; }
 
     /* ===== TAB BAR ===== */
     #tabBar {
