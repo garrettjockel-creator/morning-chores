@@ -890,11 +890,16 @@ async function toggleChore(choreId) {
     if (!todayDoc.xpAwarded.includes(choreId)) {
       todayDoc.xpAwarded.push(choreId);
       const oldLvl = getLevelInfo(profile.xp).level;
-      profile.xp += (chore.xp || 10);
+      const earned = chore.xp || 10;
+      profile.xp += earned;
       profile.totalChoresCompleted += 1;
       if (chore.specialTrack === 'bible') profile.bibleReadCount = (profile.bibleReadCount || 0) + 1;
       const newLvl = getLevelInfo(profile.xp).level;
-      if (newLvl > oldLvl) setTimeout(() => showLevelUp(newLvl), 300);
+      if (newLvl > oldLvl) {
+        setTimeout(() => showLevelUp(newLvl), 300);
+      } else {
+        speak('Plus ' + earned + ' points! You now have ' + profile.xp + ' points!');
+      }
       showStickerPop(choreId);
     }
     // All done?
@@ -906,7 +911,7 @@ async function toggleChore(choreId) {
       else if (profile.lastAllDoneDate !== today) profile.streak = 1;
       profile.lastAllDoneDate = today;
       if ([3,7,14,30].includes(profile.streak)) profile.xp += profile.streak * 5;
-      setTimeout(() => { showConfetti(); speak('All chores done! Great job today! You are a champion!'); }, 200);
+      setTimeout(() => { showConfetti(); speak('All chores done! Bonus 25 points! You now have ' + profile.xp + ' points total! Great job today!'); }, 200);
     }
     checkBadges();
   } else {
