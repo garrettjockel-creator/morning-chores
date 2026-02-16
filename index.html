@@ -759,6 +759,9 @@ function renderBadges() {
 
 function renderChat() {
   const el = document.getElementById('chatContent');
+  if (config.workerUrl && !config.workerUrl.startsWith('http')) {
+    config.workerUrl = 'https://' + config.workerUrl;
+  }
   if (!config.workerUrl) {
     el.innerHTML = '<div class="chat-disabled">💬<br><br>Chat is not set up yet.<br>Ask a parent to configure it!</div>';
     return;
