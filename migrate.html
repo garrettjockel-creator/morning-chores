@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Migrate Data — Morning Chores</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh; color: white;
+      padding: 40px 20px;
+    }
+    .container { max-width: 500px; margin: 0 auto; }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    p { font-size: 14px; opacity: 0.85; margin-bottom: 20px; line-height: 1.5; }
+    .btn {
+      background: white; color: #667eea; border: none;
+      border-radius: 12px; padding: 14px 28px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      margin-bottom: 20px;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #log {
+      background: rgba(0,0,0,0.3); border-radius: 12px;
+      padding: 16px; font-family: monospace; font-size: 13px;
+      line-height: 1.6; white-space: pre-wrap; max-height: 60vh;
+      overflow-y: auto;
+    }
+    .success { color: #34d399; }
+    .error { color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Data Migration</h1>
+    <p>This will copy Garrett's existing data from the old flat Firestore structure into a new <code>families/{id}/</code> subcollection structure. Run this once, then save the new family ID.</p>
+    <button class="btn" id="migrateBtn" onclick="runMigration()">Run Migration</button>
+    <div id="log"></div>
+  </div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyC08HJ3Q8yitpJyTG28nhrWhZBv2s3YDwE",
+  authDomain: "morning-chores-ee2f3.firebaseapp.com",
+  projectId: "morning-chores-ee2f3",
+  storageBucket: "morning-chores-ee2f3.firebasestorage.app",
+  messagingSenderId: "374643848407",
+  appId: "1:374643848407:web:642a57af25f97f037cec92"
+};
+
+const logEl = document.getElementById('log');
+function log(msg, cls) {
+  const span = document.createElement('span');
+  if (cls) span.className = cls;
+  span.textContent = msg + '\n';
+  logEl.appendChild(span);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+async function runMigration() {
+  document.getElementById('migrateBtn').disabled = true;
+
+  try {
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    log('Firebase initialized.');
+
+    // 1. Read old config
+    log('Reading old config/settings...');
+    const configDoc = await db.collection('config').doc('settings').get();
+    if (!configDoc.exists) {
+      log('No config/settings found. Nothing to migrate.', 'error');
+      return;
+    }
+    const config = configDoc.data();
+    log('Found config: childName=' + (config.childName || 'N/A'));
+
+    // 2. Read old profile
+    log('Reading old profile/main...');
+    const profileDoc = await db.collection('profile').doc('main').get();
+    const profile = profileDoc.exists ? profileDoc.data() : { xp: 0, streak: 0 };
+    log('Found profile: xp=' + (profile.xp || 0) + ', streak=' + (profile.streak || 0));
+
+    // 3. Read old chores
+    log('Reading old chores...');
+    const choresSnap = await db.collection('chores').get();
+    const choresDocs = choresSnap.docs;
+    log('Found ' + choresDocs.length + ' chores.');
+
+    // 4. Read old completions
+    log('Reading old completions...');
+    const compSnap = await db.collection('completions').get();
+    const compDocs = compSnap.docs;
+    log('Found ' + compDocs.length + ' completion records.');
+
+    // 5. Read old goals
+    log('Reading old goals...');
+    const goalsSnap = await db.collection('goals').get();
+    const goalsDocs = goalsSnap.docs;
+    log('Found ' + goalsDocs.length + ' goals.');
+
+    // 6. Create new family doc
+    log('\nCreating new family document...');
+    const familyRef = db.collection('families').doc();
+    const familyId = familyRef.id;
+    log('New family ID: ' + familyId, 'success');
+
+    await familyRef.set({
+      parentName: 'Garrett',
+      parentEmail: '',
+      childName: config.childName || 'Buddy',
+      pinHash: config.pinHash || '',
+      workerUrl: config.workerUrl || 'https://morning-chores-helper.gjockel.workers.dev',
+      chatEnabled: config.chatEnabled !== undefined ? config.chatEnabled : true,
+      xpPerChore: config.xpPerChore || 10,
+      kidOnboardingComplete: true, // Skip onboarding for existing user
+      createdAt: new Date().toISOString(),
+    });
+    log('Family doc created.');
+
+    // 7. Copy profile
+    log('Copying profile...');
+    await familyRef.collection('profile').doc('main').set(profile);
+    log('Profile copied.');
+
+    // 8. Copy chores
+    log('Copying chores...');
+    for (const doc of choresDocs) {
+      await familyRef.collection('chores').doc(doc.id).set(doc.data());
+    }
+    log('Chores copied.');
+
+    // 9. Copy completions
+    log('Copying completions...');
+    for (const doc of compDocs) {
+      await familyRef.collection('completions').doc(doc.id).set(doc.data());
+    }
+    log('Completions copied.');
+
+    // 10. Copy goals
+    log('Copying goals...');
+    for (const doc of goalsDocs) {
+      await familyRef.collection('goals').doc(doc.id).set(doc.data());
+    }
+    log('Goals copied.');
+
+    // 11. Store familyId in localStorage
+    localStorage.setItem('familyId', familyId);
+    log('\nFamily ID stored in localStorage.', 'success');
+
+    log('\n========================================', 'success');
+    log('MIGRATION COMPLETE!', 'success');
+    log('Family ID: ' + familyId, 'success');
+    log('========================================', 'success');
+    log('\nYou can now visit:');
+    log('  app.html?f=' + familyId);
+    log('  parent.html?f=' + familyId);
+    log('\nSave this family ID! Share it with other devices by visiting the URL with ?f= parameter.');
+
+  } catch (e) {
+    log('\nMigration failed: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+</script>
+</body>
+</html>

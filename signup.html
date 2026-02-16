@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Sign Up — Morning Chores</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --primary: #667eea;
+      --primary-dark: #764ba2;
+      --green: #22c55e;
+      --gold: #fbbf24;
+      --red: #ef4444;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: white;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .container {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .signup-emoji { font-size: 56px; margin-bottom: 12px; }
+    .signup-title { font-size: 28px; font-weight: 900; margin-bottom: 6px; text-align: center; }
+    .signup-subtitle { font-size: 15px; opacity: 0.85; margin-bottom: 28px; text-align: center; }
+
+    .form-card {
+      width: 100%;
+      background: white;
+      border-radius: 20px;
+      padding: 28px 24px;
+      color: #1a1a2e;
+    }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block; font-size: 13px; font-weight: 700;
+      color: #555; margin-bottom: 6px;
+    }
+    .form-group input {
+      width: 100%; padding: 12px 14px;
+      border: 2px solid #e5e7eb; border-radius: 12px;
+      font-size: 16px; outline: none;
+      -webkit-appearance: none;
+    }
+    .form-group input:focus { border-color: var(--primary); }
+
+    .form-divider {
+      text-align: center; font-size: 14px; font-weight: 700;
+      color: #999; margin: 20px 0 16px;
+    }
+
+    /* PIN Pad */
+    .pin-section { text-align: center; }
+    .pin-section-label {
+      font-size: 14px; font-weight: 700; color: #555;
+      margin-bottom: 4px;
+    }
+    .pin-section-sub {
+      font-size: 12px; color: #999; margin-bottom: 12px;
+    }
+    .pin-dots {
+      display: flex; gap: 12px; justify-content: center; margin-bottom: 16px;
+    }
+    .pin-dot {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid #ccc; transition: all 0.2s;
+    }
+    .pin-dot.filled { background: var(--primary); border-color: var(--primary); }
+    .pin-dot.error { background: var(--red); border-color: var(--red); }
+    .pin-pad {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 8px;
+      max-width: 220px; margin: 0 auto;
+    }
+    .pin-key {
+      background: #f3f4f6; border: none; border-radius: 12px;
+      padding: 12px; font-size: 20px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pin-key:active { background: #e5e7eb; }
+    .pin-key.back { font-size: 16px; color: #888; }
+
+    .pin-status {
+      font-size: 13px; font-weight: 600; margin-top: 10px;
+      min-height: 18px;
+    }
+    .pin-status.error { color: var(--red); }
+    .pin-status.success { color: var(--green); }
+
+    /* Submit */
+    .submit-btn {
+      width: 100%; margin-top: 20px;
+      padding: 14px; background: var(--primary);
+      color: white; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 800;
+      cursor: pointer; transition: transform 0.2s;
+    }
+    .submit-btn:active { transform: scale(0.97); }
+    .submit-btn:disabled {
+      background: #ccc; cursor: not-allowed;
+    }
+
+    .form-error {
+      color: var(--red); font-size: 13px; font-weight: 600;
+      text-align: center; margin-top: 10px; display: none;
+    }
+    .form-error.visible { display: block; }
+
+    .back-link {
+      margin-top: 20px; font-size: 14px; opacity: 0.7;
+    }
+    .back-link a { color: white; text-decoration: underline; }
+
+    /* Loading overlay */
+    .loading-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .loading-overlay.visible { display: flex; }
+    .loading-box {
+      background: white; border-radius: 20px; padding: 30px;
+      text-align: center; color: #333;
+    }
+    .loading-spinner {
+      display: inline-block; width: 28px; height: 28px;
+      border: 3px solid #e5e7eb; border-top-color: var(--primary);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { margin-top: 12px; font-weight: 600; font-size: 15px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="signup-emoji">🎉</div>
+    <h1 class="signup-title">Welcome!</h1>
+    <p class="signup-subtitle">Set up Morning Chores for your family</p>
+
+    <div class="form-card">
+      <div class="form-group">
+        <label>Your First Name</label>
+        <input type="text" id="parentName" placeholder="e.g. Sarah" autocomplete="given-name">
+      </div>
+      <div class="form-group">
+        <label>Your Email</label>
+        <input type="email" id="parentEmail" placeholder="e.g. sarah@email.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Child's First Name</label>
+        <input type="text" id="childName" placeholder="e.g. Emma" autocomplete="off">
+      </div>
+
+      <div class="form-divider">Create a Parent PIN</div>
+
+      <div class="pin-section">
+        <div class="pin-section-sub">This keeps the parent dashboard private from your kid</div>
+        <div class="pin-dots">
+          <div class="pin-dot" id="d0"></div>
+          <div class="pin-dot" id="d1"></div>
+          <div class="pin-dot" id="d2"></div>
+          <div class="pin-dot" id="d3"></div>
+        </div>
+        <div class="pin-pad">
+          <button class="pin-key" onclick="pinPress('1')">1</button>
+          <button class="pin-key" onclick="pinPress('2')">2</button>
+          <button class="pin-key" onclick="pinPress('3')">3</button>
+          <button class="pin-key" onclick="pinPress('4')">4</button>
+          <button class="pin-key" onclick="pinPress('5')">5</button>
+          <button class="pin-key" onclick="pinPress('6')">6</button>
+          <button class="pin-key" onclick="pinPress('7')">7</button>
+          <button class="pin-key" onclick="pinPress('8')">8</button>
+          <button class="pin-key" onclick="pinPress('9')">9</button>
+          <button class="pin-key" disabled></button>
+          <button class="pin-key" onclick="pinPress('0')">0</button>
+          <button class="pin-key back" onclick="pinBack()">&#9003;</button>
+        </div>
+        <div class="pin-status" id="pinStatus"></div>
+      </div>
+
+      <button class="submit-btn" id="submitBtn" onclick="submitSignup()">Create Account</button>
+      <div class="form-error" id="formError"></div>
+    </div>
+
+    <div class="back-link">
+      <a href="index.html">&larr; Back to home</a>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-box">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Setting up your family...</div>
+    </div>
+  </div>
+
+<script>
+// Guard: check passcode
+if (!sessionStorage.getItem('passcodeVerified')) {
+  window.location.href = 'index.html';
+}
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC08HJ3Q8yitpJyTG28nhrWhZBv2s3YDwE",
+  authDomain: "morning-chores-ee2f3.firebaseapp.com",
+  projectId: "morning-chores-ee2f3",
+  storageBucket: "morning-chores-ee2f3.firebasestorage.app",
+  messagingSenderId: "374643848407",
+  appId: "1:374643848407:web:642a57af25f97f037cec92"
+};
+
+const DEFAULT_CHORES = [
+  { title: 'Make Your Bed', subtitle: 'Nice and tidy!', icon: '🛏️', xp: 10, order: 1, active: true },
+  { title: 'Brush Your Teeth', subtitle: 'Sparkle sparkle!', icon: '🪥', xp: 10, order: 2, active: true },
+  { title: 'Get Dressed', subtitle: 'Pick out your outfit', icon: '👕', xp: 10, order: 3, active: true },
+  { title: 'Clean Up Toys', subtitle: 'Everything in its place', icon: '🧸', xp: 10, order: 4, active: true },
+  { title: 'Read a Book', subtitle: '10 minutes of reading', icon: '📖', xp: 10, order: 5, active: true },
+];
+
+let pinBuffer = '';
+let pinFirst = '';
+let pinPhase = 'create'; // 'create' | 'confirm'
+let pinConfirmed = false;
+let finalPinHash = '';
+
+// PIN
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('d' + i);
+    dot.className = 'pin-dot' + (i < pinBuffer.length ? ' filled' : '');
+  }
+}
+
+function pinPress(digit) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += digit;
+  updateDots();
+  if (pinBuffer.length === 4) setTimeout(handlePinComplete, 200);
+}
+
+function pinBack() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updateDots();
+}
+
+async function hashPin(pin) {
+  const data = new TextEncoder().encode(pin);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function handlePinComplete() {
+  const status = document.getElementById('pinStatus');
+
+  if (pinPhase === 'create') {
+    pinFirst = pinBuffer;
+    pinBuffer = '';
+    pinPhase = 'confirm';
+    status.textContent = 'Now confirm your PIN';
+    status.className = 'pin-status';
+    updateDots();
+    return;
+  }
+
+  if (pinPhase === 'confirm') {
+    if (pinBuffer === pinFirst) {
+      finalPinHash = await hashPin(pinBuffer);
+      pinConfirmed = true;
+      status.textContent = 'PIN set!';
+      status.className = 'pin-status success';
+    } else {
+      status.textContent = "PINs didn't match. Try again.";
+      status.className = 'pin-status error';
+      pinPhase = 'create';
+      pinFirst = '';
+      pinBuffer = '';
+      pinConfirmed = false;
+      updateDots();
+      for (let i = 0; i < 4; i++) document.getElementById('d' + i).classList.add('error');
+      setTimeout(() => {
+        for (let i = 0; i < 4; i++) document.getElementById('d' + i).classList.remove('error');
+      }, 600);
+    }
+  }
+}
+
+async function submitSignup() {
+  const parentName = document.getElementById('parentName').value.trim();
+  const parentEmail = document.getElementById('parentEmail').value.trim();
+  const childName = document.getElementById('childName').value.trim();
+  const errorEl = document.getElementById('formError');
+
+  // Validate
+  if (!parentName) { showError('Please enter your first name.'); return; }
+  if (!parentEmail) { showError('Please enter your email.'); return; }
+  if (!childName) { showError("Please enter your child's first name."); return; }
+  if (!pinConfirmed) { showError('Please create and confirm a 4-digit PIN.'); return; }
+
+  // Show loading
+  document.getElementById('loadingOverlay').classList.add('visible');
+  document.getElementById('submitBtn').disabled = true;
+
+  try {
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Create family doc (auto-generated ID)
+    const familyRef = db.collection('families').doc();
+    const familyId = familyRef.id;
+
+    // Family doc
+    await familyRef.set({
+      parentName: parentName,
+      parentEmail: parentEmail,
+      childName: childName,
+      pinHash: finalPinHash,
+      workerUrl: 'https://morning-chores-helper.gjockel.workers.dev',
+      chatEnabled: true,
+      xpPerChore: 10,
+      kidOnboardingComplete: false,
+      createdAt: new Date().toISOString(),
+    });
+
+    // Default profile
+    await familyRef.collection('profile').doc('main').set({
+      xp: 0,
+      streak: 0,
+      lastAllDoneDate: null,
+      badges: [],
+      bibleReadCount: 0,
+      totalChoresCompleted: 0,
+      goalsSet: 0,
+      goalsCompleted: 0,
+    });
+
+    // Default chores
+    const batch = db.batch();
+    DEFAULT_CHORES.forEach(c => {
+      batch.set(familyRef.collection('chores').doc(), c);
+    });
+    await batch.commit();
+
+    // Store familyId
+    localStorage.setItem('familyId', familyId);
+
+    // Clear passcode session
+    sessionStorage.removeItem('passcodeVerified');
+
+    // Redirect to app
+    window.location.href = 'app.html?f=' + familyId;
+
+  } catch (e) {
+    console.error('Signup failed:', e);
+    document.getElementById('loadingOverlay').classList.remove('visible');
+    document.getElementById('submitBtn').disabled = false;
+    showError('Something went wrong. Please try again.');
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('formError');
+  el.textContent = msg;
+  el.classList.add('visible');
+  setTimeout(function() { el.classList.remove('visible'); }, 4000);
+}
+</script>
+</body>
+</html>

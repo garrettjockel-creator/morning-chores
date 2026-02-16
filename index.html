@@ -6,1463 +6,236 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Morning Chores</title>
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <style>
     :root {
       --primary: #667eea;
       --primary-dark: #764ba2;
       --green: #34d399;
-      --green-dark: #22c55e;
       --gold: #fbbf24;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      height: 100%;
-      overflow: hidden;
-    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: white;
       -webkit-user-select: none;
       user-select: none;
-      color: #1a1a2e;
     }
 
-    /* ===== TOP BAR ===== */
-    #topBar {
-      flex-shrink: 0;
-      background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      padding: 10px 14px;
-      padding-top: max(env(safe-area-inset-top), 10px);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: white;
-    }
-    .top-left { flex-shrink: 0; }
-    .top-name { font-size: 17px; font-weight: 800; }
-    .top-level { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
-    .level-badge {
-      background: rgba(255,255,255,0.25);
-      padding: 1px 7px;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 700;
-    }
-    .level-title { font-size: 12px; opacity: 0.9; }
-    .top-xp { flex: 1; min-width: 0; }
-    .xp-bar {
-      height: 8px;
-      background: rgba(255,255,255,0.2);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    .xp-fill {
-      height: 100%;
-      background: var(--gold);
-      border-radius: 4px;
-      transition: width 0.5s ease;
-      width: 0%;
-    }
-    .xp-text { font-size: 10px; opacity: 0.8; display: block; margin-top: 2px; }
-    .top-streak { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
-    .streak-fire { font-size: 20px; }
-    .streak-count { font-size: 16px; font-weight: 800; }
-    .settings-link {
-      color: white;
-      text-decoration: none;
-      font-size: 20px;
-      opacity: 0.6;
-      flex-shrink: 0;
-      padding: 4px;
-    }
-
-    /* ===== TAB CONTENT ===== */
-    #tabContent {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      padding: 14px 16px 16px;
-    }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-
-    /* ===== TAB BAR ===== */
-    #tabBar {
-      flex-shrink: 0;
-      display: flex;
-      background: white;
-      border-top: 2px solid #e5e7eb;
-      padding: 4px 0;
-      padding-bottom: max(env(safe-area-inset-bottom), 6px);
-    }
-    .tab-btn {
-      flex: 1;
-      background: none;
-      border: none;
-      font-size: 11px;
-      font-weight: 600;
-      color: #aaa;
-      padding: 6px 2px 2px;
-      cursor: pointer;
+    .container {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 1px;
-      -webkit-tap-highlight-color: transparent;
     }
-    .tab-btn.active { color: var(--primary); }
-    .tab-icon { font-size: 22px; }
 
-    /* ===== CHORES TAB ===== */
-    .date-display {
-      text-align: center;
-      color: rgba(255,255,255,0.8);
-      font-size: 15px;
-      margin-bottom: 14px;
-      font-weight: 600;
+    /* Hero */
+    .hero-emoji { font-size: 72px; margin-bottom: 16px; }
+    .hero-title {
+      font-size: 36px; font-weight: 900;
+      text-align: center; line-height: 1.2;
+      margin-bottom: 8px;
     }
-    .chore-card {
-      background: white;
-      border-radius: 16px;
-      padding: 16px 18px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      cursor: pointer;
-      transition: all 0.25s ease;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      -webkit-tap-highlight-color: transparent;
-      position: relative;
-      border: 2px solid transparent;
+    .hero-subtitle {
+      font-size: 18px; opacity: 0.9;
+      text-align: center; font-weight: 600;
+      margin-bottom: 32px;
     }
-    .chore-card:active { transform: scale(0.97); }
-    .chore-card.done { background: #e8f9ee; border-color: var(--green); }
-    .chore-check {
-      width: 34px; height: 34px;
-      border-radius: 10px;
-      border: 3px solid #d1d5db;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.25s ease;
-      background: white;
-    }
-    .chore-card.done .chore-check { background: var(--green); border-color: var(--green); }
-    .chore-check svg {
-      width: 18px; height: 18px;
-      stroke: white; stroke-width: 3; fill: none;
-      opacity: 0; transition: opacity 0.2s;
-    }
-    .chore-card.done .chore-check svg { opacity: 1; }
-    .chore-info { flex: 1; }
-    .chore-title-text { font-size: 17px; font-weight: 700; }
-    .chore-card.done .chore-title-text { color: var(--green-dark); text-decoration: line-through; }
-    .chore-subtitle-text { font-size: 13px; color: #999; margin-top: 1px; }
-    .chore-icon-display { font-size: 30px; flex-shrink: 0; }
-    .chore-xp { position: absolute; top: 5px; right: 10px; font-size: 10px; font-weight: 700; color: var(--gold); }
 
-    /* Daily Progress */
-    .daily-progress {
-      margin-top: 14px;
+    /* Features */
+    .features {
+      width: 100%;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px; margin-bottom: 36px;
+    }
+    .feature-card {
       background: rgba(255,255,255,0.15);
-      border-radius: 12px;
-      padding: 12px 14px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 18px 14px;
       text-align: center;
     }
-    .progress-bar-bg {
-      width: 100%; height: 12px;
+    .feature-icon { font-size: 36px; margin-bottom: 8px; }
+    .feature-name { font-size: 14px; font-weight: 700; }
+    .feature-desc { font-size: 11px; opacity: 0.8; margin-top: 4px; line-height: 1.3; }
+
+    /* Invite gate */
+    .invite-section {
+      width: 100%;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 28px 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .invite-badge {
+      display: inline-block;
       background: rgba(255,255,255,0.2);
-      border-radius: 6px; overflow: hidden;
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
     }
-    .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--green), var(--green-dark));
-      border-radius: 6px;
-      transition: width 0.4s ease;
-      width: 0%;
+    .invite-title {
+      font-size: 20px; font-weight: 800;
+      margin-bottom: 6px;
     }
-    .progress-text { margin-top: 6px; font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.9); }
-    .all-done-banner {
-      display: none; margin-top: 18px; text-align: center;
-      background: white; border-radius: 16px; padding: 22px;
-      animation: pop 0.5s ease;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    .invite-text {
+      font-size: 14px; opacity: 0.85;
+      margin-bottom: 20px; line-height: 1.4;
     }
-    .all-done-banner.visible { display: block; }
-    .all-done-trophy { font-size: 52px; }
-    .all-done-msg { font-size: 20px; font-weight: 800; color: var(--green-dark); margin-top: 4px; }
-    .all-done-sub { font-size: 13px; color: #888; margin-top: 4px; }
-
-    /* ===== REWARDS TAB ===== */
-    .rewards-balance {
-      text-align: center; padding: 16px; margin-bottom: 16px;
-      background: rgba(255,255,255,0.15); border-radius: 16px;
+    .passcode-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      outline: none;
     }
-    .rewards-balance-label { font-size: 14px; color: rgba(255,255,255,0.8); font-weight: 600; }
-    .rewards-balance-num { font-size: 42px; font-weight: 900; color: white; }
-    .rewards-balance-unit { font-size: 16px; color: var(--gold); font-weight: 700; }
-    .reward-card {
-      background: white; border-radius: 16px; padding: 18px;
-      margin-bottom: 14px; display: flex; align-items: center; gap: 14px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08); position: relative;
-      overflow: hidden;
+    .passcode-input::placeholder {
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 2px;
+      font-size: 14px;
     }
-    .reward-card.affordable { border: 3px solid var(--green); }
-    .reward-emoji { font-size: 36px; flex-shrink: 0; }
-    .reward-info { flex: 1; }
-    .reward-name { font-size: 17px; font-weight: 800; color: #333; }
-    .reward-cost { font-size: 13px; color: #666; font-weight: 600; margin-top: 2px; }
-    .reward-progress-bar {
-      height: 8px; background: #e5e7eb; border-radius: 4px;
-      overflow: hidden; margin-top: 8px;
+    .passcode-input:focus {
+      border-color: var(--gold);
     }
-    .reward-progress-fill {
-      height: 100%; border-radius: 4px; transition: width 0.5s ease;
-      background: linear-gradient(90deg, var(--primary), var(--green));
-    }
-    .reward-progress-fill.full { background: var(--green); }
-    .reward-pct { font-size: 11px; color: #999; font-weight: 600; margin-top: 3px; text-align: right; }
-    .reward-redeem-btn {
-      background: var(--green); color: white; border: none;
-      border-radius: 12px; padding: 10px 18px; font-size: 14px;
-      font-weight: 800; cursor: pointer; flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .reward-redeem-btn:active { transform: scale(0.95); }
-    .reward-redeem-btn:disabled {
-      background: #d1d5db; cursor: default;
-    }
-    .reward-locked-label {
-      font-size: 12px; color: #999; font-weight: 700; flex-shrink: 0;
-      text-align: center; min-width: 60px;
-    }
-
-    /* ===== CHAT TAB ===== */
-    .chat-container {
-      display: flex; flex-direction: column; align-items: center;
-      height: calc(100vh - 160px); justify-content: space-between;
-      touch-action: pan-y;
-    }
-    .chat-avatar {
-      font-size: 64px; margin-top: 8px; animation: avatarBounce 2s ease infinite;
-    }
-    @keyframes avatarBounce {
-      0%,100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
-    }
-    .chat-avatar.talking { animation: avatarTalk 0.3s ease infinite; }
-    @keyframes avatarTalk {
-      0%,100% { transform: scale(1); }
-      50% { transform: scale(1.08); }
-    }
-    .chat-speech {
-      background: white; color: #333; border-radius: 20px;
-      padding: 16px 20px; margin: 12px 8px; font-size: 17px;
-      font-weight: 600; line-height: 1.5; text-align: center;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-      max-width: 95%; position: relative;
-      cursor: pointer; transition: transform 0.2s;
-    }
-    .chat-speech:active { transform: scale(0.97); }
-    .chat-speech::after {
-      content: ''; position: absolute; top: -10px; left: 50%;
-      transform: translateX(-50%);
-      border-left: 10px solid transparent; border-right: 10px solid transparent;
-      border-bottom: 10px solid white;
-    }
-    .chat-thinking {
-      display: none; color: rgba(255,255,255,0.8); font-size: 16px;
-      font-weight: 600; padding: 14px; text-align: center;
-    }
-    .chat-thinking.visible { display: block; }
-    .thinking-dots::after {
-      content: ''; animation: dots 1.4s steps(4,end) infinite;
-    }
-    @keyframes dots {
-      0% { content: ''; }
-      25% { content: '.'; }
-      50% { content: '..'; }
-      75% { content: '...'; }
-    }
-    .chat-you-said {
-      color: rgba(255,255,255,0.6); font-size: 13px;
-      font-style: italic; text-align: center; min-height: 18px;
-    }
-    .chat-prompts {
-      display: flex; flex-wrap: wrap; gap: 8px;
-      justify-content: center; padding: 4px 0;
-    }
-    .chat-prompt-btn {
-      background: white; border: none; border-radius: 16px;
-      padding: 10px 14px; font-size: 14px; font-weight: 600;
-      color: #333; cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      -webkit-tap-highlight-color: transparent;
+    .passcode-btn {
+      width: 100%;
+      margin-top: 14px;
+      padding: 14px;
+      background: white;
+      color: var(--primary);
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
       transition: transform 0.2s;
     }
-    .chat-prompt-btn:active { transform: scale(0.95); }
-    .mic-area { display: flex; flex-direction: column; align-items: center; padding: 6px 0; }
-    .mic-btn {
-      width: 80px; height: 80px; border-radius: 50%;
-      background: white; border: 4px solid var(--primary);
-      font-size: 36px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      -webkit-tap-highlight-color: transparent;
-      transition: all 0.3s;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    .passcode-btn:active { transform: scale(0.97); }
+    .passcode-error {
+      color: #fca5a5;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 10px;
+      display: none;
     }
-    .mic-btn:active { transform: scale(0.93); }
-    .mic-btn.listening {
-      background: var(--green); border-color: white;
-      animation: micPulse 1s ease infinite;
-      box-shadow: 0 0 0 0 rgba(52,211,153,0.4);
+    .passcode-error.visible { display: block; }
+
+    /* Already signed up */
+    .already-link {
+      margin-top: 16px;
+      font-size: 14px;
+      opacity: 0.7;
     }
-    .mic-btn.convo-active {
-      background: #ef4444; border-color: white;
-      box-shadow: 0 4px 20px rgba(239,68,68,0.3);
-    }
-    .mic-btn.convo-active.listening {
-      background: var(--green); border-color: white;
-      animation: micPulse 1s ease infinite;
-    }
-    @keyframes micPulse {
-      0%,100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
-      50% { box-shadow: 0 0 0 16px rgba(52,211,153,0); }
-    }
-    .mic-label {
-      font-size: 14px; color: rgba(255,255,255,0.8);
-      margin-top: 8px; font-weight: 700;
-    }
-    .chat-disabled {
-      text-align: center; color: rgba(255,255,255,0.7);
-      padding: 40px 20px; font-size: 15px;
+    .already-link a {
+      color: white;
+      text-decoration: underline;
+      font-weight: 600;
     }
 
-    /* ===== ACTIVITIES TAB ===== */
-    .filter-bar {
-      display: flex; gap: 6px; flex-wrap: wrap;
-      margin-bottom: 14px;
+    /* Footer */
+    .footer {
+      margin-top: auto;
+      padding-top: 24px;
+      font-size: 12px;
+      opacity: 0.5;
+      text-align: center;
     }
-    .filter-btn {
-      background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3);
-      border-radius: 20px; padding: 6px 12px;
-      font-size: 12px; font-weight: 700; color: white;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: all 0.2s;
-    }
-    .filter-btn.active { background: white; color: var(--primary); border-color: white; }
-    .filter-btn:active { transform: scale(0.95); }
-    .activity-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-    .activity-card {
-      background: white; border-radius: 14px;
-      padding: 12px 8px; text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      cursor: pointer; transition: all 0.2s;
-    }
-    .activity-card:active { transform: scale(0.95); }
-    .activity-card.hidden { display: none; }
-    .activity-emoji { font-size: 28px; }
-    .activity-name { font-size: 11px; font-weight: 600; color: #333; margin-top: 3px; line-height: 1.2; }
-    .activity-card.tappable { border: 2px solid var(--gold); }
-    .tap-hint { font-size: 9px; color: var(--gold); font-weight: 700; margin-top: 2px; }
-    .no-results { text-align: center; color: rgba(255,255,255,0.7); padding: 30px; font-size: 14px; }
-
-    /* Speaker buttons */
-    .speak-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 44px; height: 44px; border-radius: 50%;
-      background: rgba(102,126,234,0.15); border: none;
-      font-size: 20px; cursor: pointer; flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.2s;
-    }
-    .speak-btn:active { background: rgba(102,126,234,0.35); transform: scale(0.93); }
-    .speak-btn.speaking { animation: pulse 0.8s ease infinite; }
-    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.2); } }
-    .pick-btn {
-      display: block; margin: 0 auto 18px;
-      background: white; border: none; border-radius: 20px;
-      padding: 10px 24px; font-size: 15px; font-weight: 700;
-      color: var(--primary); cursor: pointer;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-    }
-    .pick-btn:active { transform: scale(0.95); }
-    .pick-result {
-      display: none; text-align: center; background: white;
-      border-radius: 16px; padding: 20px; margin-bottom: 18px;
-      animation: pop 0.4s ease;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-    .pick-result.visible { display: block; }
-    .pick-result-emoji { font-size: 48px; }
-    .pick-result-text { font-size: 18px; font-weight: 700; margin-top: 6px; color: #333; }
-
-    /* ===== MODALS ===== */
-    .modal-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.6); z-index: 1000;
-      align-items: center; justify-content: center;
-    }
-    .modal-overlay.visible { display: flex; }
-    .modal-content {
-      background: white; border-radius: 24px;
-      padding: 28px; text-align: center;
-      max-width: 300px; width: 85%;
-      animation: pop 0.4s ease;
-    }
-    .modal-emoji { font-size: 56px; }
-    .modal-title { font-size: 22px; font-weight: 800; margin-top: 8px; }
-    .modal-subtitle { font-size: 14px; color: #666; margin-top: 6px; }
-    .modal-btn {
-      margin-top: 16px; background: var(--primary); color: white;
-      border: none; border-radius: 12px;
-      padding: 10px 28px; font-size: 15px; font-weight: 700; cursor: pointer;
-    }
-
-    /* ===== CONFETTI ===== */
-    #confettiCanvas {
-      display: none; position: fixed; inset: 0;
-      z-index: 999; pointer-events: none;
-    }
-
-    /* ===== STICKER POP ===== */
-    .sticker-pop {
-      position: fixed; font-size: 44px; z-index: 998;
-      pointer-events: none; animation: stickerFloat 1s ease forwards;
-    }
-    @keyframes stickerFloat {
-      0% { transform: scale(0); opacity: 1; }
-      30% { transform: scale(1.3); opacity: 1; }
-      100% { transform: scale(1) translateY(-80px); opacity: 0; }
-    }
-    @keyframes pop {
-      0% { transform: scale(0.5); opacity: 0; }
-      70% { transform: scale(1.05); }
-      100% { transform: scale(1); opacity: 1; }
-    }
-
-    /* ===== LOADING ===== */
-    #loadingScreen {
-      display: flex; align-items: center; justify-content: center;
-      flex: 1; color: white; font-size: 18px; font-weight: 600;
-    }
-    .loading-spinner {
-      display: inline-block; width: 22px; height: 22px;
-      border: 3px solid rgba(255,255,255,0.3);
-      border-top-color: white; border-radius: 50%;
-      animation: spin 0.8s linear infinite; margin-right: 10px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
+  <div class="container">
+    <div class="hero-emoji">⭐</div>
+    <h1 class="hero-title">Morning Chores</h1>
+    <p class="hero-subtitle">Turn daily chores into an epic adventure for your kids</p>
 
-  <!-- Loading -->
-  <div id="loadingScreen"><div class="loading-spinner"></div>Loading...</div>
-
-  <!-- App -->
-  <div id="app" style="display:none;flex-direction:column;height:100%;overflow:hidden;position:fixed;top:0;left:0;right:0;bottom:0;">
-
-    <!-- Top Bar -->
-    <div id="topBar">
-      <div class="top-left">
-        <div class="top-name" id="childName">Buddy</div>
-        <div class="top-level">
-          <span class="level-badge" id="levelBadge">Lv.1</span>
-          <span class="level-title" id="levelTitle">Little Helper</span>
-        </div>
+    <div class="features">
+      <div class="feature-card">
+        <div class="feature-icon">✅</div>
+        <div class="feature-name">Daily Chores</div>
+        <div class="feature-desc">Kids check off tasks and earn XP every morning</div>
       </div>
-      <div class="top-xp">
-        <div class="xp-bar"><div class="xp-fill" id="xpFill"></div></div>
-        <span class="xp-text" id="xpText">0 / 50 XP</span>
+      <div class="feature-card">
+        <div class="feature-icon">🎁</div>
+        <div class="feature-name">Real Rewards</div>
+        <div class="feature-desc">Earn points and redeem them for real prizes</div>
       </div>
-      <div class="top-streak">
-        <span class="streak-fire">🔥</span>
-        <span class="streak-count" id="streakCount">0</span>
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <div class="feature-name">AI Librarian</div>
+        <div class="feature-desc">A friendly helper that reads stories and chats</div>
       </div>
-      <a href="parent.html" class="settings-link">⚙️</a>
+      <div class="feature-card">
+        <div class="feature-icon">💡</div>
+        <div class="feature-name">Activity Ideas</div>
+        <div class="feature-desc">Dozens of screen-free activities to explore</div>
+      </div>
     </div>
 
-    <!-- Tab Content -->
-    <div id="tabContent">
-
-      <!-- CHORES -->
-      <div id="choresTab" class="tab-panel active">
-        <div class="date-display" id="dateDisplay"></div>
-        <div id="choreList"></div>
-        <div class="daily-progress">
-          <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
-          <div class="progress-text" id="progressText">0 of 0 done</div>
-        </div>
-        <div class="all-done-banner" id="allDoneBanner" onclick="speak('All chores done! Great job today! You are a champion!')">
-          <div class="all-done-trophy">🏆</div>
-          <div class="all-done-msg">All Chores Done!</div>
-          <div class="all-done-sub">Great job today! You're a champion!</div>
-        </div>
-      </div>
-
-      <!-- REWARDS -->
-      <div id="rewardsTab" class="tab-panel">
-        <div id="rewardsContainer"></div>
-      </div>
-
-      <!-- CHAT -->
-      <div id="chatTab" class="tab-panel">
-        <div id="chatContent"></div>
-      </div>
-
-      <!-- ACTIVITIES -->
-      <div id="activitiesTab" class="tab-panel">
-        <div id="activitiesContainer"></div>
-      </div>
-
+    <div class="invite-section">
+      <div class="invite-badge">Invite Only</div>
+      <div class="invite-title">Join the Family</div>
+      <div class="invite-text">This app is currently invite-only. Enter your passcode to get started.</div>
+      <input type="text" class="passcode-input" id="passcodeInput" placeholder="Enter passcode" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      <button class="passcode-btn" onclick="checkPasscode()">Get Started</button>
+      <div class="passcode-error" id="passcodeError">Invalid passcode. Please try again.</div>
     </div>
 
-    <!-- Tab Bar -->
-    <nav id="tabBar">
-      <button class="tab-btn active" data-tab="chores" onclick="switchTab('chores')">
-        <span class="tab-icon">⭐</span>Chores
-      </button>
-      <button class="tab-btn" data-tab="rewards" onclick="switchTab('rewards')">
-        <span class="tab-icon">🎁</span>Rewards
-      </button>
-      <button class="tab-btn" data-tab="chat" onclick="switchTab('chat')">
-        <span class="tab-icon">💬</span>Chat
-      </button>
-      <button class="tab-btn" data-tab="activities" onclick="switchTab('activities')">
-        <span class="tab-icon">💡</span>Ideas
-      </button>
-    </nav>
+    <div class="already-link">
+      Already signed up? <a href="#" onclick="goToApp(); return false;">Open your app</a>
+    </div>
+
+    <div class="footer">Morning Chores App</div>
   </div>
-
-  <!-- Level Up Modal -->
-  <div class="modal-overlay" id="levelUpModal">
-    <div class="modal-content">
-      <div class="modal-emoji">🎉</div>
-      <div class="modal-title">Level Up!</div>
-      <div class="modal-subtitle" id="levelUpSub"></div>
-      <button class="modal-btn" onclick="closeModal('levelUpModal')">Awesome!</button>
-    </div>
-  </div>
-
-  <!-- Redeem Confirmation Modal -->
-  <div class="modal-overlay" id="redeemModal">
-    <div class="modal-content">
-      <div class="modal-emoji" id="redeemModalEmoji">🎁</div>
-      <div class="modal-title" id="redeemModalTitle">Redeem Reward?</div>
-      <div class="modal-subtitle" id="redeemModalSub"></div>
-      <button class="modal-btn" onclick="confirmRedeem()" style="background:var(--green);">Yes, Redeem!</button>
-      <button class="modal-btn" onclick="closeModal('redeemModal')" style="background:#aaa;margin-top:8px;">Not Yet</button>
-    </div>
-  </div>
-
-  <!-- Activity Detail Modal -->
-  <div class="modal-overlay" id="activityDetailModal">
-    <div class="modal-content" style="max-width:340px;">
-      <div class="modal-emoji" id="actDetailEmoji">📖</div>
-      <div class="modal-title" id="actDetailTitle" style="font-size:18px;"></div>
-      <div class="modal-subtitle" id="actDetailText" style="text-align:left;line-height:1.5;margin-top:10px;"></div>
-      <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
-        <button class="modal-btn" onclick="closeModal('activityDetailModal')">Got it!</button>
-        <button class="modal-btn" id="actDetailBtn2" style="background:#22c55e;" onclick="showActivityDetail(document.getElementById('actDetailEmoji').textContent==='📖'?'bible':document.getElementById('actDetailEmoji').textContent==='❤️'?'jesus':'draw')">Another!</button>
-      </div>
-    </div>
-  </div>
-
-  <canvas id="confettiCanvas"></canvas>
 
 <script>
-// =============================================================
-// FIREBASE CONFIG — Replace these with your project's values
-// from console.firebase.google.com → Project Settings → Web App
-// =============================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyC08HJ3Q8yitpJyTG28nhrWhZBv2s3YDwE",
-  authDomain: "morning-chores-ee2f3.firebaseapp.com",
-  projectId: "morning-chores-ee2f3",
-  storageBucket: "morning-chores-ee2f3.firebasestorage.app",
-  messagingSenderId: "374643848407",
-  appId: "1:374643848407:web:642a57af25f97f037cec92"
-};
+const PASSCODE = 'FAMILYFIRST';
 
-// ===== CONSTANTS =====
-const LEVELS = [
-  { level: 1,  xp: 0,    title: 'Little Helper' },
-  { level: 2,  xp: 50,   title: 'Rising Star' },
-  { level: 3,  xp: 150,  title: 'Super Helper' },
-  { level: 4,  xp: 300,  title: 'Chore Champion' },
-  { level: 5,  xp: 500,  title: 'Mighty Worker' },
-  { level: 6,  xp: 750,  title: 'Golden Knight' },
-  { level: 7,  xp: 1050, title: 'Super Duper Star' },
-  { level: 8,  xp: 1400, title: 'Hero of the House' },
-  { level: 9,  xp: 1800, title: 'Legendary Helper' },
-  { level: 10, xp: 2300, title: 'Ultimate Champion' },
-];
-
-const REWARDS = [
-  { id: 'reward-20',  emoji: '💵', name: '$20 Reward',  cost: 500,  dollars: 20 },
-  { id: 'reward-50',  emoji: '💰', name: '$50 Reward',  cost: 1000, dollars: 50 },
-  { id: 'reward-200', emoji: '🤑', name: '$200 Reward', cost: 2000, dollars: 200 },
-];
-
-const FILTERS = [
-  { id: 'all',      emoji: '✨', label: 'All' },
-  { id: 'inside',   emoji: '🏠', label: 'Inside' },
-  { id: 'outside',  emoji: '🌳', label: 'Outside' },
-  { id: 'solo',     emoji: '👤', label: 'By Myself' },
-  { id: 'siblings', emoji: '👫', label: 'With Siblings' },
-  { id: 'parent',   emoji: '👨‍👦', label: 'With a Parent' },
-  { id: 'drive',    emoji: '🚗', label: 'Drive To' },
-];
-
-const ACTIVITIES = [
-  // Outside
-  { emoji: '🚲', name: 'Ride your bike',          tags: ['outside','solo','siblings'] },
-  { emoji: '⚾', name: 'Play catch',              tags: ['outside','siblings','parent'] },
-  { emoji: '🥾', name: 'Nature walk',             tags: ['outside','parent','siblings'] },
-  { emoji: '🤸', name: 'Trampoline time',         tags: ['outside','solo','siblings'] },
-  { emoji: '🏗️', name: 'Build a fort',            tags: ['outside','solo','siblings'] },
-  { emoji: '🏃', name: 'Race around the yard',    tags: ['outside','siblings'] },
-  { emoji: '🏊', name: 'Go swimming',             tags: ['outside','drive','parent','siblings'] },
-  { emoji: '🛝', name: 'Go to the playground',    tags: ['outside','drive','parent','siblings'] },
-  { emoji: '⛺', name: 'Backyard camping',        tags: ['outside','parent','siblings'] },
-  { emoji: '🪁', name: 'Fly a kite',              tags: ['outside','parent','solo'] },
-  // Inside
-  { emoji: '✏️', name: 'Draw a picture',          tags: ['inside','solo'] },
-  { emoji: '🧱', name: 'Build with LEGO',         tags: ['inside','solo','siblings'] },
-  { emoji: '🎵', name: 'Make up a song',          tags: ['inside','solo','siblings'] },
-  { emoji: '🎲', name: 'Make a board game',       tags: ['inside','solo','siblings'] },
-  { emoji: '🏎️', name: 'Build a race track',      tags: ['inside','solo','siblings'] },
-  { emoji: '🧩', name: 'Do a puzzle',             tags: ['inside','solo','siblings'] },
-  { emoji: '🎮', name: 'Play a board game',       tags: ['inside','siblings','parent'] },
-  { emoji: '🍪', name: 'Bake cookies',            tags: ['inside','parent'] },
-  { emoji: '🧪', name: 'Science experiment',      tags: ['inside','parent'] },
-  // Learning
-  { emoji: '📖', name: 'Read a book',             tags: ['inside','solo','parent'] },
-  { emoji: '✍️', name: 'Practice writing',        tags: ['inside','solo'] },
-  { emoji: '🔢', name: 'Practice math',           tags: ['inside','solo'] },
-  { emoji: '🗺️', name: 'Learn about a country',   tags: ['inside','solo','parent'] },
-  // Helping
-  { emoji: '🍳', name: 'Help make a meal',        tags: ['inside','parent'] },
-  { emoji: '🌱', name: 'Water the plants',        tags: ['inside','outside','solo'] },
-  { emoji: '🧹', name: 'Clean up a room',         tags: ['inside','solo'] },
-  { emoji: '👕', name: 'Fold laundry',            tags: ['inside','solo','parent'] },
-  { emoji: '💌', name: 'Make a card for someone', tags: ['inside','solo'] },
-  { emoji: '🐕', name: 'Play with Lexi',          tags: ['inside','outside','solo'] },
-  // Drive-to
-  { emoji: '📚', name: 'Go to the library',       tags: ['drive','inside','parent'] },
-  { emoji: '🦁', name: 'Go to the zoo',           tags: ['drive','outside','parent','siblings'] },
-  { emoji: '🎳', name: 'Go bowling',              tags: ['drive','inside','parent','siblings'] },
-  { emoji: '🏛️', name: 'Visit a museum',          tags: ['drive','inside','parent','siblings'] },
-  { emoji: '🍦', name: 'Get ice cream',           tags: ['drive','parent','siblings'] },
-  { emoji: '🌳', name: 'Go to a park',            tags: ['drive','outside','parent','siblings'] },
-  { emoji: '🛒', name: 'Help with grocery shopping', tags: ['drive','parent'] },
-  // Faith
-  { emoji: '🙏', name: 'Pray for someone',        tags: ['inside','solo','siblings'] },
-  { emoji: '🎶', name: 'Worship song',            tags: ['inside','solo','siblings'] },
-  { emoji: '📖', name: 'Bible story',             tags: ['inside','solo','parent'], tap: 'bible' },
-  { emoji: '❤️', name: 'Learn about Jesus',       tags: ['inside','solo','parent'], tap: 'jesus' },
-  { emoji: '🎨', name: 'Draw for God',            tags: ['inside','solo'], tap: 'draw' },
-  { emoji: '😊', name: '3 thankful things',       tags: ['inside','solo','siblings'] },
-];
-
-const BIBLE_STORIES = [
-  { title: 'David and Goliath', text: 'A young boy named David trusted God and defeated a giant named Goliath with just a sling and a stone. God can help us be brave even when things seem scary! (1 Samuel 17)' },
-  { title: 'Noah\'s Ark', text: 'God told Noah to build a big boat and put two of every animal on it. It rained for 40 days, but God kept Noah and all the animals safe. God always keeps His promises! (Genesis 6-9)' },
-  { title: 'Daniel and the Lions', text: 'Daniel prayed to God even when it was against the rules. He was thrown into a den of lions, but God sent an angel to shut the lions\' mouths! God protects those who trust Him. (Daniel 6)' },
-  { title: 'Jonah and the Big Fish', text: 'God asked Jonah to go help some people, but Jonah ran away! A big fish swallowed him for 3 days. Jonah learned to listen to God, and the people were saved. (Jonah 1-3)' },
-  { title: 'The Good Samaritan', text: 'Jesus told a story about a man who was hurt on the road. Two people walked past him, but a kind stranger stopped to help. Jesus wants us to be kind and help everyone! (Luke 10:25-37)' },
-  { title: 'Jesus Feeds 5,000 People', text: 'A boy shared his 5 loaves of bread and 2 fish with Jesus. Jesus made it into enough food for over 5,000 people! When we share what we have, God can do amazing things. (John 6:1-14)' },
-  { title: 'Jesus Walks on Water', text: 'The disciples were in a boat during a big storm. Jesus walked on the water to them! Peter tried too, and when he got scared, Jesus caught him. Jesus is always there for us. (Matthew 14:22-33)' },
-  { title: 'The Lost Sheep', text: 'Jesus told a story about a shepherd with 100 sheep. When 1 sheep got lost, he left the 99 to find it. That\'s how much God loves each one of us — He will never give up on you! (Luke 15:1-7)' },
-  { title: 'Baby Moses', text: 'Baby Moses was put in a basket in the river to keep him safe. A princess found him and raised him. Moses grew up to lead God\'s people to freedom! God has big plans for everyone. (Exodus 2)' },
-  { title: 'Jesus Calms the Storm', text: 'Jesus and His friends were in a boat when a huge storm came. The friends were scared, but Jesus stood up and told the storm to stop — and it did! Jesus is stronger than anything. (Mark 4:35-41)' },
-];
-
-const JESUS_FACTS = [
-  { title: 'Jesus Loves Kids', text: 'When children came to see Jesus, His friends tried to send them away. But Jesus said "Let the little children come to me!" He held them and blessed them. Jesus loves you so much! (Mark 10:13-16)' },
-  { title: 'Jesus Is a Helper', text: 'Jesus spent His life helping people. He healed the sick, fed the hungry, and was kind to everyone — even people others didn\'t like. We can be like Jesus by helping others too!' },
-  { title: 'Jesus Is Always With You', text: 'Jesus promised "I am with you always, to the very end." That means when you\'re happy, sad, scared, or alone — Jesus is right there with you! (Matthew 28:20)' },
-  { title: 'Jesus Was a Kid Too', text: 'Jesus grew up just like you! He was a baby, then a kid, then a grown-up. He learned, played, and helped His mom and dad. He knows what it\'s like to be your age! (Luke 2:52)' },
-  { title: 'Jesus Forgives Us', text: 'Everyone makes mistakes. Jesus says when we tell Him we\'re sorry, He forgives us every single time. His love never runs out! (1 John 1:9)' },
-  { title: 'Jesus Is the Good Shepherd', text: 'Jesus said "I am the good shepherd." A shepherd takes care of his sheep, keeps them safe, and leads them to good places. That\'s what Jesus does for you! (John 10:11)' },
-  { title: 'Jesus Gives Us Peace', text: 'Jesus said "Peace I leave with you." When you feel worried or scared, you can talk to Jesus and He will help you feel calm and safe. (John 14:27)' },
-  { title: 'Jesus Made Everything', text: 'The Bible says Jesus helped make everything — the stars, the oceans, the animals, and YOU! He made you special and loves what He created. (Colossians 1:16)' },
-];
-
-const DRAW_PROMPTS = [
-  { title: 'Draw Your Favorite Bible Story', text: 'Pick a Bible story you love and draw the most exciting part! Maybe David fighting Goliath, or Noah\'s big boat with all the animals.' },
-  { title: 'Draw What Heaven Looks Like', text: 'The Bible says heaven has golden streets and no more tears. Draw what you think heaven looks like — make it as beautiful as you can!' },
-  { title: 'Draw Jesus and the Children', text: 'Draw a picture of Jesus sitting with children all around Him, smiling and happy. You can draw yourself there too!' },
-  { title: 'Draw Creation', text: 'Draw all the amazing things God made — the sun, moon, stars, mountains, animals, and people. Which part of creation is your favorite?' },
-  { title: 'Draw Something You\'re Thankful For', text: 'Think of 3 things God has given you that make you happy, and draw them! Maybe your family, your pet, or your home.' },
-  { title: 'Draw an Angel', text: 'Angels are God\'s messengers! Draw what you think an angel looks like. The Bible says they are bright and powerful!' },
-  { title: 'Draw the Nativity', text: 'Draw baby Jesus in the manger with Mary, Joseph, the shepherds, and the animals. Don\'t forget the bright star above!' },
-  { title: 'Draw Yourself Helping Someone', text: 'Draw a picture of you being kind and helping someone. Jesus said when we help others, it\'s like helping Him!' },
-];
-
-const STICKER_EMOJIS = ['⭐','🌟','✨','💫','🎯','👍','🙌','💪','🎉','🌈'];
-
-const DEFAULT_CHORES = [
-  { title: 'Feed Lexi', subtitle: 'Give her food & fresh water', icon: '🐶', xp: 10, order: 1, active: true },
-  { title: '30 Push-Ups', subtitle: 'Get strong!', icon: '💪', xp: 10, order: 2, active: true },
-  { title: 'Load the Dishwasher', subtitle: 'Put dirty dishes in', icon: '🧽', xp: 10, order: 3, active: true },
-  { title: 'Unload the Dishwasher', subtitle: 'Put clean dishes away', icon: '✨', xp: 10, order: 4, active: true },
-  { title: 'Read About Jesus', subtitle: '10 minutes of Bible reading', icon: '📖', xp: 10, order: 5, active: true, specialTrack: 'bible' },
-];
-
-// ===== STATE =====
-let db;
-let profile = {
-  xp: 0, streak: 0, lastAllDoneDate: null,
-  badges: [], bibleReadCount: 0,
-  totalChoresCompleted: 0, goalsSet: 0, goalsCompleted: 0,
-};
-let chores = [];
-let todayDoc = { done: [], xpAwarded: [], allDoneBonus: false };
-let config = { childName: 'Buddy', chatEnabled: true, workerUrl: '' };
-let chatHistory = [];
-
-// ===== UTILITIES =====
-function getToday() { return new Date().toISOString().split('T')[0]; }
-function getYesterday() {
-  const d = new Date(); d.setDate(d.getDate() - 1);
-  return d.toISOString().split('T')[0];
-}
-function getLevelInfo(xp) {
-  let cur = LEVELS[0], nxt = LEVELS[1];
-  for (let i = LEVELS.length - 1; i >= 0; i--) {
-    if (xp >= LEVELS[i].xp) {
-      cur = LEVELS[i]; nxt = LEVELS[i + 1] || null; break;
-    }
-  }
-  const inLvl = xp - cur.xp;
-  const need = nxt ? nxt.xp - cur.xp : 0;
-  return { level: cur.level, title: cur.title, xp, inLvl, need, progress: nxt ? inLvl / need : 1, isMax: !nxt };
-}
-
-// ===== TEXT TO SPEECH =====
-// Reuse ONE Audio element so iOS keeps it "unlocked" after the first user-gesture play.
-var ttsAudio = new Audio();
-var ttsObjectUrl = null;
-var onSpeakDone = null;
-var isSpeaking = false;
-
-function unlockAudio() {
-  // Play a tiny silent mp3 on user tap to unlock the audio element for iOS
-  ttsAudio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+MYxAAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxDsAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
-  ttsAudio.play().catch(function() {});
-}
-
-ttsAudio.addEventListener('ended', function() {
-  isSpeaking = false;
-  if (ttsObjectUrl) { URL.revokeObjectURL(ttsObjectUrl); ttsObjectUrl = null; }
-  if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
-});
-ttsAudio.addEventListener('error', function() {
-  isSpeaking = false;
-  if (ttsObjectUrl) { URL.revokeObjectURL(ttsObjectUrl); ttsObjectUrl = null; }
-  if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
+// Allow Enter key
+document.getElementById('passcodeInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') checkPasscode();
 });
 
-function stopSpeaking() {
-  isSpeaking = false;
-  ttsAudio.pause();
-  ttsAudio.removeAttribute('src');
-  if (ttsObjectUrl) { URL.revokeObjectURL(ttsObjectUrl); ttsObjectUrl = null; }
-  window.speechSynthesis.cancel();
-  onSpeakDone = null;
-}
+function checkPasscode() {
+  const input = document.getElementById('passcodeInput').value.trim().toUpperCase();
+  const errorEl = document.getElementById('passcodeError');
 
-function speak(text, btn, callback) {
-  stopSpeaking();
-  if (!text) { if (callback) callback(); return; }
-
-  onSpeakDone = callback || null;
-  isSpeaking = true;
-
-  // Try cloud TTS if worker URL is configured
-  if (config.workerUrl) {
-    var ttsUrl = config.workerUrl;
-    if (!ttsUrl.startsWith('http')) ttsUrl = 'https://' + ttsUrl;
-    ttsUrl = ttsUrl.replace(/\/$/, '') + '/tts';
-
-    if (btn) btn.classList.add('speaking');
-
-    fetch(ttsUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text.slice(0, 500) }),
-    })
-    .then(function(res) {
-      if (!res.ok) throw new Error('TTS failed');
-      return res.blob();
-    })
-    .then(function(blob) {
-      if (!isSpeaking) return; // was stopped while fetching
-      ttsObjectUrl = URL.createObjectURL(blob);
-      ttsAudio.src = ttsObjectUrl;
-      var playPromise = ttsAudio.play();
-      if (playPromise) {
-        playPromise.catch(function() {
-          // play() blocked — fall back to browser voice
-          isSpeaking = false;
-          speakBrowser(text, btn, callback);
-        });
-      }
-    })
-    .catch(function() {
-      isSpeaking = false;
-      speakBrowser(text, btn, callback);
-    });
-    return;
-  }
-
-  isSpeaking = false;
-  speakBrowser(text, btn, callback);
-}
-
-function speakBrowser(text, btn, callback) {
-  // Set callback in case cloud TTS fell through
-  if (callback) onSpeakDone = callback;
-  var utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 0.9;
-  utter.pitch = 1.05;
-  utter.lang = 'en-US';
-  if (btn) btn.classList.add('speaking');
-  utter.onend = function() {
-    if (btn) btn.classList.remove('speaking');
-    if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
-  };
-  utter.onerror = function() {
-    if (btn) btn.classList.remove('speaking');
-    if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
-  };
-  window.speechSynthesis.speak(utter);
-}
-
-// ===== FIREBASE =====
-async function initFirebase() {
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.firestore();
-  try { await db.enablePersistence(); } catch (e) { /* ok */ }
-}
-
-async function loadConfig() {
-  const doc = await db.collection('config').doc('settings').get();
-  if (doc.exists) config = { ...config, ...doc.data() };
-  else await db.collection('config').doc('settings').set(config);
-}
-
-async function loadProfile() {
-  const doc = await db.collection('profile').doc('main').get();
-  if (doc.exists) profile = { ...profile, ...doc.data() };
-  else await db.collection('profile').doc('main').set(profile);
-}
-
-async function loadChores() {
-  let snap = await db.collection('chores').orderBy('order').get();
-  if (snap.empty) {
-    const batch = db.batch();
-    DEFAULT_CHORES.forEach(c => batch.set(db.collection('chores').doc(), c));
-    await batch.commit();
-    snap = await db.collection('chores').orderBy('order').get();
-  }
-  chores = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.active !== false);
-}
-
-async function loadToday() {
-  const doc = await db.collection('completions').doc(getToday()).get();
-  if (doc.exists) todayDoc = { done: [], xpAwarded: [], allDoneBonus: false, ...doc.data() };
-}
-
-async function saveProfile() { await db.collection('profile').doc('main').set(profile); }
-async function saveToday() { await db.collection('completions').doc(getToday()).set(todayDoc); }
-
-// ===== STREAK =====
-function checkStreakOnLoad() {
-  if (!profile.lastAllDoneDate) return;
-  const today = getToday(), yesterday = getYesterday();
-  if (profile.lastAllDoneDate === today || profile.lastAllDoneDate === yesterday) return;
-  profile.streak = 0; // broken
-}
-
-// ===== CHORE TOGGLE =====
-async function toggleChore(choreId) {
-  const idx = todayDoc.done.indexOf(choreId);
-  const chore = chores.find(c => c.id === choreId);
-  if (!chore) return;
-
-  if (idx === -1) {
-    // Complete
-    todayDoc.done.push(choreId);
-    if (!todayDoc.xpAwarded.includes(choreId)) {
-      todayDoc.xpAwarded.push(choreId);
-      const oldLvl = getLevelInfo(profile.xp).level;
-      const earned = chore.xp || 10;
-      profile.xp += earned;
-      profile.totalChoresCompleted += 1;
-      if (chore.specialTrack === 'bible') profile.bibleReadCount = (profile.bibleReadCount || 0) + 1;
-      const newLvl = getLevelInfo(profile.xp).level;
-      if (newLvl > oldLvl) {
-        setTimeout(() => showLevelUp(newLvl), 300);
-      } else {
-        const li = getLevelInfo(profile.xp);
-        speak('Plus ' + earned + ' points! You now have ' + li.inLvl + ' out of ' + li.need + ' points to reach level ' + (li.level + 1) + '!');
-      }
-      showStickerPop(choreId);
-    }
-    // All done?
-    if (todayDoc.done.length >= chores.length && !todayDoc.allDoneBonus) {
-      todayDoc.allDoneBonus = true;
-      profile.xp += 25;
-      const today = getToday(), yesterday = getYesterday();
-      if (profile.lastAllDoneDate === yesterday) profile.streak += 1;
-      else if (profile.lastAllDoneDate !== today) profile.streak = 1;
-      profile.lastAllDoneDate = today;
-      if ([3,7,14,30].includes(profile.streak)) profile.xp += profile.streak * 5;
-      setTimeout(() => {
-        const li = getLevelInfo(profile.xp);
-        showConfetti();
-        speak('All chores done! Bonus 25 points! You now have ' + li.inLvl + ' out of ' + li.need + ' points to reach level ' + (li.level + 1) + '! Great job today!');
-      }, 200);
-    }
-    renderRewards();
+  if (input === PASSCODE) {
+    sessionStorage.setItem('passcodeVerified', 'true');
+    window.location.href = 'signup.html';
   } else {
-    // Uncomplete — deduct XP if it was awarded
-    todayDoc.done.splice(idx, 1);
-    const xpIdx = todayDoc.xpAwarded.indexOf(choreId);
-    if (xpIdx !== -1) {
-      todayDoc.xpAwarded.splice(xpIdx, 1);
-      profile.xp = Math.max(0, profile.xp - (chore.xp || 10));
-      profile.totalChoresCompleted = Math.max(0, profile.totalChoresCompleted - 1);
-    }
-    // Reverse all-done bonus if it was awarded
-    if (todayDoc.allDoneBonus) {
-      todayDoc.allDoneBonus = false;
-      profile.xp = Math.max(0, profile.xp - 25);
-    }
-  }
-
-  await Promise.all([saveProfile(), saveToday()]);
-  renderChores(); updateTopBar(); updateProgress();
-}
-
-// ===== BADGES =====
-// (badges removed — replaced by reward store)
-
-// ===== RENDERING =====
-function updateTopBar() {
-  const info = getLevelInfo(profile.xp);
-  document.getElementById('childName').textContent = config.childName || 'Buddy';
-  document.getElementById('levelBadge').textContent = 'Lv.' + info.level;
-  document.getElementById('levelTitle').textContent = info.title;
-  document.getElementById('xpFill').style.width = (info.progress * 100) + '%';
-  document.getElementById('xpText').textContent = info.isMax ? 'MAX LEVEL!' : info.inLvl + ' / ' + info.need + ' XP';
-  document.getElementById('streakCount').textContent = profile.streak;
-}
-
-function renderChores() {
-  const list = document.getElementById('choreList');
-  list.innerHTML = '';
-  chores.forEach(c => {
-    const done = todayDoc.done.includes(c.id);
-    const div = document.createElement('div');
-    div.className = 'chore-card' + (done ? ' done' : '');
-    div.id = 'chore-' + c.id;
-    div.onclick = () => toggleChore(c.id);
-    div.innerHTML =
-      '<div class="chore-check"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div>' +
-      '<div class="chore-info"><div class="chore-title-text">' + c.title + '</div>' +
-      '<div class="chore-subtitle-text">' + (c.subtitle || '') + '</div></div>' +
-      '<button class="speak-btn" onclick="event.stopPropagation();speak(\'' + c.title.replace(/'/g, "\\'") + '. ' + (c.subtitle || '').replace(/'/g, "\\'") + '\', this)">🔊</button>' +
-      '<div class="chore-icon-display">' + c.icon + '</div>' +
-      '<div class="chore-xp">+' + (c.xp || 10) + ' XP</div>';
-    list.appendChild(div);
-  });
-}
-
-function updateProgress() {
-  const done = todayDoc.done.length, total = chores.length;
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressText').textContent = done + ' of ' + total + ' done';
-  const banner = document.getElementById('allDoneBanner');
-  if (done >= total && total > 0) banner.classList.add('visible');
-  else banner.classList.remove('visible');
-}
-
-let pendingReward = null;
-
-function renderRewards() {
-  var html = '<div class="rewards-balance">' +
-    '<div class="rewards-balance-label">Your Points</div>' +
-    '<div class="rewards-balance-num">' + profile.xp + '</div>' +
-    '<div class="rewards-balance-unit">points</div>' +
-    '</div>';
-  REWARDS.forEach(function(r) {
-    var affordable = profile.xp >= r.cost;
-    var pct = Math.min(100, Math.round((profile.xp / r.cost) * 100));
-    var remaining = Math.max(0, r.cost - profile.xp);
-    html += '<div class="reward-card' + (affordable ? ' affordable' : '') + '" onclick="speak(\'' +
-      (affordable ? r.name + '. You can redeem this!' : r.name + '. ' + remaining + ' more points to go!') + '\')">' +
-      '<div class="reward-emoji">' + r.emoji + '</div>' +
-      '<div class="reward-info">' +
-      '<div class="reward-name">' + r.name + '</div>' +
-      '<div class="reward-cost">' + r.cost + ' points</div>' +
-      '<div class="reward-progress-bar"><div class="reward-progress-fill' + (affordable ? ' full' : '') + '" style="width:' + pct + '%"></div></div>' +
-      '<div class="reward-pct">' + (affordable ? 'Ready!' : pct + '% — ' + remaining + ' points to go') + '</div>' +
-      '</div>';
-    if (affordable) {
-      html += '<button class="reward-redeem-btn" onclick="event.stopPropagation();startRedeem(\'' + r.id + '\')">Redeem</button>';
-    } else {
-      html += '<div class="reward-locked-label">Keep going!</div>';
-    }
-    html += '</div>';
-  });
-  document.getElementById('rewardsContainer').innerHTML = html;
-}
-
-function startRedeem(rewardId) {
-  var r = REWARDS.find(function(x) { return x.id === rewardId; });
-  if (!r || profile.xp < r.cost) return;
-  pendingReward = r;
-  document.getElementById('redeemModalEmoji').textContent = r.emoji;
-  document.getElementById('redeemModalTitle').textContent = 'Redeem ' + r.name + '?';
-  document.getElementById('redeemModalSub').textContent = 'This will use ' + r.cost + ' of your points.';
-  document.getElementById('redeemModal').classList.add('visible');
-  speak('Do you want to redeem ' + r.name + '? This will use ' + r.cost + ' points.');
-}
-
-async function confirmRedeem() {
-  if (!pendingReward || profile.xp < pendingReward.cost) {
-    closeModal('redeemModal');
-    return;
-  }
-  profile.xp -= pendingReward.cost;
-  // Track redemptions
-  if (!profile.redemptions) profile.redemptions = [];
-  profile.redemptions.push({ id: pendingReward.id, name: pendingReward.name, dollars: pendingReward.dollars, date: new Date().toISOString() });
-  await saveProfile();
-  closeModal('redeemModal');
-  speak('Awesome! You redeemed ' + pendingReward.name + '! Ask Mom or Dad to get your reward!');
-  pendingReward = null;
-  renderRewards();
-  updateTopBar();
-}
-
-const CHAT_PROMPTS = [
-  { emoji: '🤔', text: 'What should I do today?' },
-  { emoji: '📖', text: 'Tell me a Bible story' },
-  { emoji: '😴', text: "I'm bored" },
-  { emoji: '🙏', text: 'Pray with me' },
-  { emoji: '😊', text: 'I did something good today!' },
-  { emoji: '💪', text: 'I finished all my chores!' },
-  { emoji: '🌟', text: 'Tell me something cool' },
-  { emoji: '❤️', text: 'Tell me about Jesus' },
-];
-
-function renderChat() {
-  const el = document.getElementById('chatContent');
-  if (config.workerUrl && !config.workerUrl.startsWith('http')) {
-    config.workerUrl = 'https://' + config.workerUrl;
-  }
-  if (!config.workerUrl) {
-    el.innerHTML = '<div class="chat-disabled">💬<br><br>Chat is not set up yet.<br>Ask a parent to configure it!</div>';
-    return;
-  }
-  el.innerHTML =
-    '<div class="chat-container">' +
-    '<div class="chat-avatar" id="chatAvatar">🤖</div>' +
-    '<div class="chat-speech" id="chatSpeech" onclick="interruptHelper()">Hi! I\'m Helper! Tap the big button to talk to me!</div>' +
-    '<div class="chat-thinking" id="chatThinking">🤔 Helper is thinking<span class="thinking-dots"></span></div>' +
-    '<div class="chat-you-said" id="chatYouSaid"></div>' +
-    '<div class="chat-prompts" id="chatPrompts">' +
-    CHAT_PROMPTS.map(p =>
-      '<button class="chat-prompt-btn" onclick="sendChatText(\'' + p.text.replace(/'/g, "\\'") + '\')">' + p.emoji + ' ' + p.text + '</button>'
-    ).join('') +
-    '</div>' +
-    '<div class="mic-area">' +
-    '<button class="mic-btn" id="micBtn" onclick="toggleConversation()">🎤</button>' +
-    '<div class="mic-label" id="micLabel">Tap to start a conversation</div>' +
-    '</div></div>';
-  speak('Hi! I\'m Helper! Tap the big button to talk to me!');
-}
-
-let activeFilter = 'all';
-
-function renderActivities() {
-  let html = '<div class="filter-bar">' +
-    FILTERS.map(f =>
-      '<button class="filter-btn' + (f.id === activeFilter ? ' active' : '') + '" onclick="setFilter(\'' + f.id + '\')">' +
-      f.emoji + ' ' + f.label + '</button>'
-    ).join('') + '</div>';
-  html += '<button class="pick-btn" onclick="pickRandom()">🎲 Pick For Me!</button>' +
-    '<div class="pick-result" id="pickResult"><div class="pick-result-emoji" id="pickEmoji"></div>' +
-    '<div class="pick-result-text" id="pickText"></div></div>';
-  html += '<div class="activity-grid">';
-  ACTIVITIES.forEach(i => {
-    const show = activeFilter === 'all' || i.tags.includes(activeFilter);
-    const tap = i.tap
-      ? ' onclick="showActivityDetail(\'' + i.tap + '\')"'
-      : ' onclick="speak(\'' + i.name.replace(/'/g, "\\'") + '\', null)"';
-    const hint = i.tap ? '<div class="tap-hint">Tap me!</div>' : '';
-    html += '<div class="activity-card' + (i.tap ? ' tappable' : '') + (show ? '' : ' hidden') + '"' + tap + '>' +
-      '<div class="activity-emoji">' + i.emoji + '</div>' +
-      '<div class="activity-name">' + i.name + '</div>' + hint + '</div>';
-  });
-  html += '</div>';
-  document.getElementById('activitiesContainer').innerHTML = html;
-}
-
-function setFilter(id) {
-  activeFilter = id;
-  renderActivities();
-}
-
-function showActivityDetail(type) {
-  let item;
-  if (type === 'bible') item = BIBLE_STORIES[Math.floor(Math.random() * BIBLE_STORIES.length)];
-  else if (type === 'jesus') item = JESUS_FACTS[Math.floor(Math.random() * JESUS_FACTS.length)];
-  else if (type === 'draw') item = DRAW_PROMPTS[Math.floor(Math.random() * DRAW_PROMPTS.length)];
-  if (!item) return;
-  document.getElementById('actDetailEmoji').textContent = type === 'bible' ? '📖' : type === 'jesus' ? '❤️' : '🎨';
-  document.getElementById('actDetailTitle').textContent = item.title;
-  document.getElementById('actDetailText').textContent = item.text;
-  document.getElementById('actDetailBtn2').style.display = 'inline-block';
-  document.getElementById('activityDetailModal').classList.add('visible');
-  speak(item.title + '. ' + item.text);
-}
-
-function pickRandom() {
-  const filtered = activeFilter === 'all' ? ACTIVITIES : ACTIVITIES.filter(a => a.tags.includes(activeFilter));
-  if (filtered.length === 0) return;
-  const pick = filtered[Math.floor(Math.random() * filtered.length)];
-  document.getElementById('pickEmoji').textContent = pick.emoji;
-  document.getElementById('pickText').textContent = pick.name;
-  speak(pick.name);
-  const el = document.getElementById('pickResult');
-  el.classList.remove('visible');
-  void el.offsetWidth;
-  el.classList.add('visible');
-}
-
-// ===== TAB SWITCHING =====
-function switchTab(tab) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(tab + 'Tab').classList.add('active');
-  document.querySelector('[data-tab="' + tab + '"]').classList.add('active');
-}
-
-// ===== ANIMATIONS =====
-function showConfetti() {
-  const canvas = document.getElementById('confettiCanvas');
-  canvas.style.display = 'block';
-  const ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const particles = [];
-  const colors = ['#ff0000','#00cc44','#0066ff','#ffdd00','#ff00ff','#00cccc','#ff6600','#ff69b4'];
-  for (let i = 0; i < 120; i++) {
-    particles.push({
-      x: Math.random() * canvas.width,
-      y: -10 - Math.random() * 300,
-      w: 5 + Math.random() * 6, h: 3 + Math.random() * 4,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      vx: (Math.random() - 0.5) * 4, vy: 2 + Math.random() * 4,
-      rot: Math.random() * 360, rs: (Math.random() - 0.5) * 10,
-    });
-  }
-  let frame = 0;
-  (function go() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    let alive = false;
-    for (const p of particles) {
-      p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.rot += p.rs;
-      if (p.y < canvas.height + 20) alive = true;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot * Math.PI / 180);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
-      ctx.restore();
-    }
-    if (alive && ++frame < 250) requestAnimationFrame(go);
-    else canvas.style.display = 'none';
-  })();
-}
-
-function showStickerPop(choreId) {
-  const el = document.getElementById('chore-' + choreId);
-  if (!el) return;
-  const r = el.getBoundingClientRect();
-  const s = document.createElement('div');
-  s.className = 'sticker-pop';
-  s.textContent = STICKER_EMOJIS[Math.floor(Math.random() * STICKER_EMOJIS.length)];
-  s.style.left = (r.left + r.width / 2 - 22) + 'px';
-  s.style.top = r.top + 'px';
-  document.body.appendChild(s);
-  setTimeout(() => s.remove(), 1000);
-}
-
-function showLevelUp(level) {
-  const info = LEVELS.find(l => l.level === level);
-  document.getElementById('levelUpSub').textContent =
-    'Level ' + level + ' — ' + (info ? info.title : '') + '!';
-  document.getElementById('levelUpModal').classList.add('visible');
-  showConfetti();
-  speak('Level Up! You reached Level ' + level + ', ' + (info ? info.title : '') + '!');
-}
-
-// (showBadgeUnlock removed — replaced by reward store)
-
-function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
-
-// ===== CHAT =====
-let micRecognition = null;
-let micListening = false;
-let convoMode = false;
-let chatBusy = false;
-
-async function sendChatText(text) {
-  if (!text || !text.trim() || chatBusy) return;
-  text = text.trim();
-  chatBusy = true;
-
-  // Interrupt any current speech
-  stopSpeaking();
-
-  var speech = document.getElementById('chatSpeech');
-  var prompts = document.getElementById('chatPrompts');
-  var thinking = document.getElementById('chatThinking');
-  var youSaid = document.getElementById('chatYouSaid');
-  var avatar = document.getElementById('chatAvatar');
-
-  if (youSaid) youSaid.textContent = 'You said: "' + text + '"';
-  if (prompts) prompts.style.display = 'none';
-  if (speech) speech.style.display = 'none';
-  if (thinking) thinking.classList.add('visible');
-  if (avatar) avatar.classList.remove('talking');
-  chatHistory.push({ role: 'user', content: text });
-
-  try {
-    var res = await fetch(config.workerUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: chatHistory.slice(-10),
-        context: { name: config.childName, level: getLevelInfo(profile.xp).title, streak: profile.streak }
-      })
-    });
-    var rawText = await res.text();
-    var data;
-    try { data = JSON.parse(rawText); } catch (pe) {
-      showHelperReply("Oops! I can't talk right now. Try again!");
-      return;
-    }
-    if (data.error) {
-      showHelperReply("Hmm, something went wrong. Try again!");
-    } else {
-      var reply = data.reply || data.content?.[0]?.text || "Hmm, I'm not sure what to say!";
-      chatHistory.push({ role: 'assistant', content: reply });
-      showHelperReply(reply);
-    }
-  } catch (e) {
-    showHelperReply("Oops! I can't reach my brain right now. Try again!");
+    errorEl.classList.add('visible');
+    document.getElementById('passcodeInput').value = '';
+    setTimeout(function() { errorEl.classList.remove('visible'); }, 3000);
   }
 }
 
-function showHelperReply(text) {
-  var speech = document.getElementById('chatSpeech');
-  var thinking = document.getElementById('chatThinking');
-  var prompts = document.getElementById('chatPrompts');
-  var avatar = document.getElementById('chatAvatar');
-
-  if (thinking) thinking.classList.remove('visible');
-  if (speech) {
-    speech.textContent = text;
-    speech.style.display = '';
-    speech.style.animation = 'none';
-    void speech.offsetWidth;
-    speech.style.animation = 'pop 0.4s ease';
-  }
-  // Show prompts only if not in conversation mode
-  if (prompts) prompts.style.display = convoMode ? 'none' : '';
-  if (avatar) avatar.classList.add('talking');
-
-  var callbackFired = false;
-  function onDone() {
-    if (callbackFired) return;
-    callbackFired = true;
-    if (avatar) avatar.classList.remove('talking');
-    chatBusy = false;
-    if (convoMode) {
-      // Small delay then auto-listen
-      setTimeout(function() { if (convoMode) startListening(); }, 400);
-    }
-  }
-
-  // Speak the reply, then auto-listen if in conversation mode
-  speak(text, null, onDone);
-
-  // Safety timeout: if speak callback never fires, force it after 12 seconds
-  setTimeout(onDone, Math.max(4000, text.length * 80 + 2000));
-}
-
-function toggleConversation() {
-  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    var label = document.getElementById('micLabel');
-    if (label) label.textContent = 'Voice not supported on this device';
-    return;
-  }
-
-  if (convoMode) {
-    // End conversation
-    endConversation();
+function goToApp() {
+  const fid = localStorage.getItem('familyId');
+  if (fid) {
+    window.location.href = 'app.html?f=' + fid;
   } else {
-    // Start conversation — unlock audio on this user gesture
-    unlockAudio();
-    convoMode = true;
-    var btn = document.getElementById('micBtn');
-    var label = document.getElementById('micLabel');
-    var prompts = document.getElementById('chatPrompts');
-    if (btn) { btn.classList.add('convo-active'); btn.textContent = '⏹'; }
-    if (label) label.textContent = 'Tap to end conversation';
-    if (prompts) prompts.style.display = 'none';
-    startListening();
+    alert('No account found on this device. Please sign up first.');
   }
 }
-
-function endConversation() {
-  convoMode = false;
-  stopSpeaking();
-  if (micRecognition) { try { micRecognition.stop(); } catch(e) {} micRecognition = null; }
-  micListening = false;
-  chatBusy = false;
-  var btn = document.getElementById('micBtn');
-  var label = document.getElementById('micLabel');
-  var prompts = document.getElementById('chatPrompts');
-  if (btn) { btn.classList.remove('convo-active', 'listening'); btn.textContent = '🎤'; }
-  if (label) label.textContent = 'Tap to start a conversation';
-  if (prompts) prompts.style.display = '';
-}
-
-function startListening() {
-  if (!convoMode || chatBusy) return;
-  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) return;
-
-  // Stop any lingering audio before listening
-  stopSpeaking();
-
-  // Stop previous recognition if any
-  if (micRecognition) { try { micRecognition.stop(); } catch(e) {} micRecognition = null; }
-
-  micRecognition = new SpeechRecognition();
-  micRecognition.lang = 'en-US';
-  micRecognition.interimResults = false;
-  micRecognition.maxAlternatives = 1;
-
-  var btn = document.getElementById('micBtn');
-  var label = document.getElementById('micLabel');
-
-  micRecognition.onstart = function() {
-    micListening = true;
-    if (btn) btn.classList.add('listening');
-    if (label) label.textContent = 'Listening...';
-  };
-
-  micRecognition.onresult = function(e) {
-    var transcript = e.results[0][0].transcript;
-    micListening = false;
-    if (btn) btn.classList.remove('listening');
-    if (label) label.textContent = 'Tap to end conversation';
-    // Stop recognition fully before trying to speak (iOS audio session conflict)
-    try { micRecognition.stop(); } catch(ex) {}
-    micRecognition = null;
-    // Small delay to let iOS release the audio session
-    setTimeout(function() { sendChatText(transcript); }, 300);
-  };
-
-  micRecognition.onerror = function(e) {
-    micListening = false;
-    if (btn) btn.classList.remove('listening');
-    if (e.error === 'no-speech' && convoMode) {
-      if (label) label.textContent = "I didn't hear you. Listening again...";
-      // Re-listen after a short pause
-      setTimeout(function() { if (convoMode) startListening(); }, 500);
-    } else if (e.error === 'not-allowed' || e.error === 'service-not-available') {
-      endConversation();
-      if (label) label.textContent = 'Microphone not available';
-    }
-  };
-
-  micRecognition.onend = function() {
-    micListening = false;
-    if (btn) btn.classList.remove('listening');
-  };
-
-  micRecognition.start();
-}
-
-// Allow interruption: tap speech bubble while bot is talking to stop and talk
-function interruptHelper() {
-  if (isSpeaking || window.speechSynthesis.speaking) {
-    stopSpeaking();
-    var avatar = document.getElementById('chatAvatar');
-    if (avatar) avatar.classList.remove('talking');
-    chatBusy = false;
-    if (convoMode) startListening();
-  } else {
-    // If not speaking, replay the speech bubble
-    var speech = document.getElementById('chatSpeech');
-    if (speech) speak(speech.textContent);
-  }
-}
-
-// ===== INIT =====
-async function init() {
-  try {
-    await initFirebase();
-    await Promise.all([loadConfig(), loadProfile(), loadChores()]);
-    await loadToday();
-    checkStreakOnLoad();
-
-    const opts = { weekday: 'long', month: 'long', day: 'numeric' };
-    document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-US', opts);
-
-    updateTopBar();
-    renderChores();
-    updateProgress();
-    renderRewards();
-    renderChat();
-    renderActivities();
-
-    document.getElementById('loadingScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-  } catch (e) {
-    console.error('Init failed:', e);
-    document.getElementById('loadingScreen').innerHTML =
-      '<div style="text-align:center;color:white;padding:20px;max-width:400px;">' +
-      '<div style="font-size:48px;margin-bottom:12px;">🔧</div>' +
-      '<h2>Setup Needed</h2>' +
-      '<p style="margin-top:10px;opacity:0.85;font-size:14px;line-height:1.5;">' +
-      'Open <b>index.html</b> and replace the <code style="background:rgba(255,255,255,0.2);padding:2px 6px;border-radius:4px;">firebaseConfig</code> values with your Firebase project settings.</p>' +
-      '</div>';
-  }
-}
-
-init();
 </script>
 </body>
 </html>

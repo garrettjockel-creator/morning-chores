@@ -200,7 +200,7 @@
     <div class="dash-header">
       <div class="dash-header-top">
         <h1>Parent Dashboard</h1>
-        <a href="index.html" class="dash-back">&larr; Kid App</a>
+        <a id="kidAppLink" href="app.html" class="dash-back">&larr; Kid App</a>
       </div>
       <div class="stat-grid">
         <div class="stat-box">
@@ -249,10 +249,6 @@
         <input class="setting-input" id="settingName" placeholder="Name">
       </div>
       <div class="setting-row">
-        <span class="setting-label">Worker URL</span>
-        <input class="setting-input" id="settingWorker" placeholder="https://...">
-      </div>
-      <div class="setting-row">
         <span class="setting-label">XP per Chore</span>
         <input class="setting-input" id="settingXP" type="number" value="10" min="1" max="100">
       </div>
@@ -295,7 +291,25 @@
   </div>
 
 <script>
-// ===== FIREBASE CONFIG — must match index.html =====
+// =============================================================
+// FAMILY ID HELPER — Multi-family support
+// =============================================================
+function getFamilyId() {
+  const params = new URLSearchParams(window.location.search);
+  let fid = params.get('f');
+  if (fid) {
+    localStorage.setItem('familyId', fid);
+    return fid;
+  }
+  fid = localStorage.getItem('familyId');
+  if (fid) return fid;
+  window.location.href = 'index.html';
+  return null;
+}
+
+const familyId = getFamilyId();
+
+// ===== FIREBASE CONFIG =====
 const firebaseConfig = {
   apiKey: "AIzaSyC08HJ3Q8yitpJyTG28nhrWhZBv2s3YDwE",
   authDomain: "morning-chores-ee2f3.firebaseapp.com",
@@ -305,24 +319,34 @@ const firebaseConfig = {
   appId: "1:374643848407:web:642a57af25f97f037cec92"
 };
 
-let db;
-let config = {};
+let db, familyRef;
+let familyData = {};
 let profile = {};
 let chores = [];
-let pinMode = 'enter'; // 'enter' | 'create' | 'confirm'
+let pinMode = 'enter';
 let pinBuffer = '';
 let pinFirst = '';
 
 // ===== INIT =====
 async function init() {
+  if (!familyId) return;
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
+  familyRef = db.collection('families').doc(familyId);
   try { await db.enablePersistence(); } catch(e) {}
 
-  const cfgDoc = await db.collection('config').doc('settings').get();
-  if (cfgDoc.exists) config = cfgDoc.data();
+  const famDoc = await familyRef.get();
+  if (!famDoc.exists) {
+    localStorage.removeItem('familyId');
+    window.location.href = 'index.html';
+    return;
+  }
+  familyData = famDoc.data();
 
-  if (!config.pinHash) {
+  // Update kid app link
+  document.getElementById('kidAppLink').href = 'app.html?f=' + familyId;
+
+  if (!familyData.pinHash) {
     pinMode = 'create';
     document.getElementById('pinTitle').textContent = 'Create a PIN';
     document.getElementById('pinSubtitle').textContent = 'Choose a 4-digit parent PIN';
@@ -371,8 +395,8 @@ async function submitPin() {
 
   if (pinMode === 'confirm') {
     if (pinBuffer === pinFirst) {
-      config.pinHash = hash;
-      await db.collection('config').doc('settings').set(config, { merge: true });
+      familyData.pinHash = hash;
+      await familyRef.update({ pinHash: hash });
       showDashboard();
     } else {
       showPinError("PINs didn't match. Try again.");
@@ -386,7 +410,7 @@ async function submitPin() {
   }
 
   // enter mode
-  if (hash === config.pinHash) {
+  if (hash === familyData.pinHash) {
     showDashboard();
   } else {
     showPinError('Wrong PIN. Try again.');
@@ -414,15 +438,15 @@ async function showDashboard() {
 
 async function loadDashData() {
   // Profile
-  const pDoc = await db.collection('profile').doc('main').get();
+  const pDoc = await familyRef.collection('profile').doc('main').get();
   profile = pDoc.exists ? pDoc.data() : { xp: 0, streak: 0, badges: [] };
 
-  // Config
-  const cDoc = await db.collection('config').doc('settings').get();
-  if (cDoc.exists) config = cDoc.data();
+  // Refresh family data
+  const famDoc = await familyRef.get();
+  if (famDoc.exists) familyData = famDoc.data();
 
   // Chores
-  const cSnap = await db.collection('chores').orderBy('order').get();
+  const cSnap = await familyRef.collection('chores').orderBy('order').get();
   chores = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
   // 30-day completions
@@ -433,12 +457,12 @@ async function loadDashData() {
   }
   const completions = {};
   for (const day of days) {
-    const doc = await db.collection('completions').doc(day).get();
+    const doc = await familyRef.collection('completions').doc(day).get();
     completions[day] = doc.exists ? doc.data() : null;
   }
 
   // Goals
-  const gSnap = await db.collection('goals').orderBy('createdAt', 'desc').get();
+  const gSnap = await familyRef.collection('goals').orderBy('createdAt', 'desc').get();
   const goals = gSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
   renderStats(completions, days);
@@ -460,7 +484,6 @@ function renderStats(completions, days) {
   document.getElementById('statXP').textContent = profile.xp || 0;
   document.getElementById('statLevel').textContent = lvl;
 
-  // 7-day rate
   const last7 = days.slice(-7);
   let totalPct = 0, counted = 0;
   const activeCount = chores.filter(c => c.active !== false).length || 1;
@@ -527,9 +550,8 @@ function renderGoals(goals) {
 }
 
 function populateSettings() {
-  document.getElementById('settingName').value = config.childName || '';
-  document.getElementById('settingWorker').value = config.workerUrl || '';
-  document.getElementById('settingXP').value = config.xpPerChore || 10;
+  document.getElementById('settingName').value = familyData.childName || '';
+  document.getElementById('settingXP').value = familyData.xpPerChore || 10;
 }
 
 // ===== CHORE CRUD =====
@@ -569,10 +591,10 @@ async function saveChore() {
   if (!data.title) return;
 
   if (editId) {
-    await db.collection('chores').doc(editId).update(data);
+    await familyRef.collection('chores').doc(editId).update(data);
   } else {
     data.order = chores.length + 1;
-    await db.collection('chores').doc().set(data);
+    await familyRef.collection('chores').doc().set(data);
   }
   closeChoreForm();
   await loadDashData();
@@ -580,7 +602,7 @@ async function saveChore() {
 
 async function deleteChore(id) {
   if (!confirm('Remove this chore?')) return;
-  await db.collection('chores').doc(id).delete();
+  await familyRef.collection('chores').doc(id).delete();
   await loadDashData();
 }
 
@@ -588,15 +610,14 @@ async function deleteChore(id) {
 async function saveSettings() {
   const updates = {
     childName: document.getElementById('settingName').value.trim(),
-    workerUrl: document.getElementById('settingWorker').value.trim(),
     xpPerChore: parseInt(document.getElementById('settingXP').value) || 10,
   };
   const newPin = document.getElementById('settingPIN').value.trim();
   if (newPin && newPin.length === 4) {
     updates.pinHash = await hashPin(newPin);
   }
-  await db.collection('config').doc('settings').set({ ...config, ...updates }, { merge: true });
-  config = { ...config, ...updates };
+  await familyRef.update(updates);
+  familyData = { ...familyData, ...updates };
   document.getElementById('settingPIN').value = '';
   alert('Settings saved!');
 }
