@@ -272,6 +272,8 @@
     .activity-card:active { transform: scale(0.95); }
     .activity-emoji { font-size: 30px; }
     .activity-name { font-size: 12px; font-weight: 600; color: #333; margin-top: 4px; }
+    .activity-card.tappable { border: 2px solid var(--gold); }
+    .tap-hint { font-size: 9px; color: var(--gold); font-weight: 700; margin-top: 2px; }
     .pick-btn {
       display: block; margin: 0 auto 18px;
       background: white; border: none; border-radius: 20px;
@@ -448,6 +450,19 @@
     </div>
   </div>
 
+  <!-- Activity Detail Modal -->
+  <div class="modal-overlay" id="activityDetailModal">
+    <div class="modal-content" style="max-width:340px;">
+      <div class="modal-emoji" id="actDetailEmoji">📖</div>
+      <div class="modal-title" id="actDetailTitle" style="font-size:18px;"></div>
+      <div class="modal-subtitle" id="actDetailText" style="text-align:left;line-height:1.5;margin-top:10px;"></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
+        <button class="modal-btn" onclick="closeModal('activityDetailModal')">Got it!</button>
+        <button class="modal-btn" id="actDetailBtn2" style="background:#22c55e;" onclick="showActivityDetail(document.getElementById('actDetailEmoji').textContent==='📖'?'bible':document.getElementById('actDetailEmoji').textContent==='❤️'?'jesus':'draw')">Another!</button>
+      </div>
+    </div>
+  </div>
+
   <canvas id="confettiCanvas"></canvas>
 
 <script>
@@ -512,10 +527,9 @@ const ACTIVITIES = {
     items: [
       { emoji: '✏️', name: 'Draw a picture' },
       { emoji: '🧱', name: 'Build with LEGO' },
-      { emoji: '🎭', name: 'Puppet show' },
       { emoji: '🎵', name: 'Make up a song' },
-      { emoji: '✂️', name: 'Craft project' },
-      { emoji: '📦', name: 'Build with boxes' },
+      { emoji: '🎲', name: 'Make a board game' },
+      { emoji: '🏎️', name: 'Build a race track' },
     ]
   },
   learning: {
@@ -536,7 +550,7 @@ const ACTIVITIES = {
       { emoji: '🌱', name: 'Water the plants' },
       { emoji: '🧹', name: 'Clean up a room' },
       { emoji: '👕', name: 'Fold laundry' },
-      { emoji: '💌', name: 'Make a card' },
+      { emoji: '💌', name: 'Make a card for someone' },
       { emoji: '🐕', name: 'Play with Lexi' },
     ]
   },
@@ -545,13 +559,48 @@ const ACTIVITIES = {
     items: [
       { emoji: '🙏', name: 'Pray for someone' },
       { emoji: '🎶', name: 'Worship song' },
-      { emoji: '📖', name: 'Bible story' },
-      { emoji: '❤️', name: 'Tell about Jesus' },
-      { emoji: '🎨', name: 'Draw for God' },
+      { emoji: '📖', name: 'Bible story', tap: 'bible' },
+      { emoji: '❤️', name: 'Learn about Jesus', tap: 'jesus' },
+      { emoji: '🎨', name: 'Draw for God', tap: 'draw' },
       { emoji: '😊', name: '3 thankful things' },
     ]
   }
 };
+
+const BIBLE_STORIES = [
+  { title: 'David and Goliath', text: 'A young boy named David trusted God and defeated a giant named Goliath with just a sling and a stone. God can help us be brave even when things seem scary! (1 Samuel 17)' },
+  { title: 'Noah\'s Ark', text: 'God told Noah to build a big boat and put two of every animal on it. It rained for 40 days, but God kept Noah and all the animals safe. God always keeps His promises! (Genesis 6-9)' },
+  { title: 'Daniel and the Lions', text: 'Daniel prayed to God even when it was against the rules. He was thrown into a den of lions, but God sent an angel to shut the lions\' mouths! God protects those who trust Him. (Daniel 6)' },
+  { title: 'Jonah and the Big Fish', text: 'God asked Jonah to go help some people, but Jonah ran away! A big fish swallowed him for 3 days. Jonah learned to listen to God, and the people were saved. (Jonah 1-3)' },
+  { title: 'The Good Samaritan', text: 'Jesus told a story about a man who was hurt on the road. Two people walked past him, but a kind stranger stopped to help. Jesus wants us to be kind and help everyone! (Luke 10:25-37)' },
+  { title: 'Jesus Feeds 5,000 People', text: 'A boy shared his 5 loaves of bread and 2 fish with Jesus. Jesus made it into enough food for over 5,000 people! When we share what we have, God can do amazing things. (John 6:1-14)' },
+  { title: 'Jesus Walks on Water', text: 'The disciples were in a boat during a big storm. Jesus walked on the water to them! Peter tried too, and when he got scared, Jesus caught him. Jesus is always there for us. (Matthew 14:22-33)' },
+  { title: 'The Lost Sheep', text: 'Jesus told a story about a shepherd with 100 sheep. When 1 sheep got lost, he left the 99 to find it. That\'s how much God loves each one of us — He will never give up on you! (Luke 15:1-7)' },
+  { title: 'Baby Moses', text: 'Baby Moses was put in a basket in the river to keep him safe. A princess found him and raised him. Moses grew up to lead God\'s people to freedom! God has big plans for everyone. (Exodus 2)' },
+  { title: 'Jesus Calms the Storm', text: 'Jesus and His friends were in a boat when a huge storm came. The friends were scared, but Jesus stood up and told the storm to stop — and it did! Jesus is stronger than anything. (Mark 4:35-41)' },
+];
+
+const JESUS_FACTS = [
+  { title: 'Jesus Loves Kids', text: 'When children came to see Jesus, His friends tried to send them away. But Jesus said "Let the little children come to me!" He held them and blessed them. Jesus loves you so much! (Mark 10:13-16)' },
+  { title: 'Jesus Is a Helper', text: 'Jesus spent His life helping people. He healed the sick, fed the hungry, and was kind to everyone — even people others didn\'t like. We can be like Jesus by helping others too!' },
+  { title: 'Jesus Is Always With You', text: 'Jesus promised "I am with you always, to the very end." That means when you\'re happy, sad, scared, or alone — Jesus is right there with you! (Matthew 28:20)' },
+  { title: 'Jesus Was a Kid Too', text: 'Jesus grew up just like you! He was a baby, then a kid, then a grown-up. He learned, played, and helped His mom and dad. He knows what it\'s like to be your age! (Luke 2:52)' },
+  { title: 'Jesus Forgives Us', text: 'Everyone makes mistakes. Jesus says when we tell Him we\'re sorry, He forgives us every single time. His love never runs out! (1 John 1:9)' },
+  { title: 'Jesus Is the Good Shepherd', text: 'Jesus said "I am the good shepherd." A shepherd takes care of his sheep, keeps them safe, and leads them to good places. That\'s what Jesus does for you! (John 10:11)' },
+  { title: 'Jesus Gives Us Peace', text: 'Jesus said "Peace I leave with you." When you feel worried or scared, you can talk to Jesus and He will help you feel calm and safe. (John 14:27)' },
+  { title: 'Jesus Made Everything', text: 'The Bible says Jesus helped make everything — the stars, the oceans, the animals, and YOU! He made you special and loves what He created. (Colossians 1:16)' },
+];
+
+const DRAW_PROMPTS = [
+  { title: 'Draw Your Favorite Bible Story', text: 'Pick a Bible story you love and draw the most exciting part! Maybe David fighting Goliath, or Noah\'s big boat with all the animals.' },
+  { title: 'Draw What Heaven Looks Like', text: 'The Bible says heaven has golden streets and no more tears. Draw what you think heaven looks like — make it as beautiful as you can!' },
+  { title: 'Draw Jesus and the Children', text: 'Draw a picture of Jesus sitting with children all around Him, smiling and happy. You can draw yourself there too!' },
+  { title: 'Draw Creation', text: 'Draw all the amazing things God made — the sun, moon, stars, mountains, animals, and people. Which part of creation is your favorite?' },
+  { title: 'Draw Something You\'re Thankful For', text: 'Think of 3 things God has given you that make you happy, and draw them! Maybe your family, your pet, or your home.' },
+  { title: 'Draw an Angel', text: 'Angels are God\'s messengers! Draw what you think an angel looks like. The Bible says they are bright and powerful!' },
+  { title: 'Draw the Nativity', text: 'Draw baby Jesus in the manger with Mary, Joseph, the shepherds, and the animals. Don\'t forget the bright star above!' },
+  { title: 'Draw Yourself Helping Someone', text: 'Draw a picture of you being kind and helping someone. Jesus said when we help others, it\'s like helping Him!' },
+];
 
 const STICKER_EMOJIS = ['⭐','🌟','✨','💫','🎯','👍','🙌','💪','🎉','🌈'];
 
@@ -788,12 +837,27 @@ function renderActivities() {
   for (const cat of Object.values(ACTIVITIES)) {
     html += '<div class="activity-category"><div class="activity-category-title">' +
       cat.icon + ' ' + cat.title + '</div><div class="activity-scroll">' +
-      cat.items.map(i =>
-        '<div class="activity-card"><div class="activity-emoji">' + i.emoji +
-        '</div><div class="activity-name">' + i.name + '</div></div>'
-      ).join('') + '</div></div>';
+      cat.items.map(i => {
+        const tap = i.tap ? ' onclick="showActivityDetail(\'' + i.tap + '\')"' : '';
+        const hint = i.tap ? '<div class="tap-hint">Tap me!</div>' : '';
+        return '<div class="activity-card' + (i.tap ? ' tappable' : '') + '"' + tap + '><div class="activity-emoji">' + i.emoji +
+        '</div><div class="activity-name">' + i.name + '</div>' + hint + '</div>';
+      }).join('') + '</div></div>';
   }
   document.getElementById('activitiesContainer').innerHTML = html;
+}
+
+function showActivityDetail(type) {
+  let item;
+  if (type === 'bible') item = BIBLE_STORIES[Math.floor(Math.random() * BIBLE_STORIES.length)];
+  else if (type === 'jesus') item = JESUS_FACTS[Math.floor(Math.random() * JESUS_FACTS.length)];
+  else if (type === 'draw') item = DRAW_PROMPTS[Math.floor(Math.random() * DRAW_PROMPTS.length)];
+  if (!item) return;
+  document.getElementById('actDetailEmoji').textContent = type === 'bible' ? '📖' : type === 'jesus' ? '❤️' : '🎨';
+  document.getElementById('actDetailTitle').textContent = item.title;
+  document.getElementById('actDetailText').textContent = item.text;
+  document.getElementById('actDetailBtn2').style.display = 'inline-block';
+  document.getElementById('activityDetailModal').classList.add('visible');
 }
 
 function pickRandom() {
