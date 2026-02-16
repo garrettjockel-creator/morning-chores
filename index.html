@@ -733,30 +733,36 @@ function getLevelInfo(xp) {
 }
 
 // ===== TEXT TO SPEECH =====
-let currentAudio = null;
-let onSpeakDone = null;
-let audioUnlocked = false;
-
-// iOS requires a user-gesture-initiated play() to unlock audio.
-// We use a shared Audio element that gets unlocked on first tap.
-var sharedAudio = new Audio();
+// Reuse ONE Audio element so iOS keeps it "unlocked" after the first user-gesture play.
+var ttsAudio = new Audio();
+var ttsObjectUrl = null;
+var onSpeakDone = null;
+var isSpeaking = false;
 
 function unlockAudio() {
-  if (audioUnlocked) return;
-  // Play silent audio to unlock on iOS
-  sharedAudio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+MYxAAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxDsAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
-  sharedAudio.play().then(function() { audioUnlocked = true; }).catch(function() {});
+  // Play a tiny silent mp3 on user tap to unlock the audio element for iOS
+  ttsAudio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+MYxAAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV/+MYxDsAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+  ttsAudio.play().catch(function() {});
 }
+
+ttsAudio.addEventListener('ended', function() {
+  isSpeaking = false;
+  if (ttsObjectUrl) { URL.revokeObjectURL(ttsObjectUrl); ttsObjectUrl = null; }
+  if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
+});
+ttsAudio.addEventListener('error', function() {
+  isSpeaking = false;
+  if (ttsObjectUrl) { URL.revokeObjectURL(ttsObjectUrl); ttsObjectUrl = null; }
+  if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
+});
 
 function stopSpeaking() {
-  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  isSpeaking = false;
+  ttsAudio.pause();
+  ttsAudio.removeAttribute('src');
+  if (ttsObjectUrl) { URL.revokeObjectURL(ttsObjectUrl); ttsObjectUrl = null; }
   window.speechSynthesis.cancel();
   onSpeakDone = null;
-}
-
-function finishSpeak(btn) {
-  if (btn) btn.classList.remove('speaking');
-  if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
 }
 
 function speak(text, btn, callback) {
@@ -764,6 +770,7 @@ function speak(text, btn, callback) {
   if (!text) { if (callback) callback(); return; }
 
   onSpeakDone = callback || null;
+  isSpeaking = true;
 
   // Try cloud TTS if worker URL is configured
   if (config.workerUrl) {
@@ -783,44 +790,45 @@ function speak(text, btn, callback) {
       return res.blob();
     })
     .then(function(blob) {
-      var url = URL.createObjectURL(blob);
-      currentAudio = new Audio(url);
-      currentAudio.onended = function() {
-        URL.revokeObjectURL(url);
-        currentAudio = null;
-        finishSpeak(btn);
-      };
-      currentAudio.onerror = function() {
-        URL.revokeObjectURL(url);
-        currentAudio = null;
-        speakBrowser(text, btn);
-      };
-      var playPromise = currentAudio.play();
+      if (!isSpeaking) return; // was stopped while fetching
+      ttsObjectUrl = URL.createObjectURL(blob);
+      ttsAudio.src = ttsObjectUrl;
+      var playPromise = ttsAudio.play();
       if (playPromise) {
         playPromise.catch(function() {
-          // Audio play blocked (iOS autoplay restriction) — fall back to browser
-          currentAudio = null;
-          speakBrowser(text, btn);
+          // play() blocked — fall back to browser voice
+          isSpeaking = false;
+          speakBrowser(text, btn, callback);
         });
       }
     })
     .catch(function() {
-      speakBrowser(text, btn);
+      isSpeaking = false;
+      speakBrowser(text, btn, callback);
     });
     return;
   }
 
-  speakBrowser(text, btn);
+  isSpeaking = false;
+  speakBrowser(text, btn, callback);
 }
 
-function speakBrowser(text, btn) {
+function speakBrowser(text, btn, callback) {
+  // Set callback in case cloud TTS fell through
+  if (callback) onSpeakDone = callback;
   var utter = new SpeechSynthesisUtterance(text);
   utter.rate = 0.9;
   utter.pitch = 1.05;
   utter.lang = 'en-US';
   if (btn) btn.classList.add('speaking');
-  utter.onend = function() { finishSpeak(btn); };
-  utter.onerror = function() { finishSpeak(btn); };
+  utter.onend = function() {
+    if (btn) btn.classList.remove('speaking');
+    if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
+  };
+  utter.onerror = function() {
+    if (btn) btn.classList.remove('speaking');
+    if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
+  };
   window.speechSynthesis.speak(utter);
 }
 
@@ -1354,7 +1362,7 @@ function startListening() {
 
 // Allow interruption: tap speech bubble while bot is talking to stop and talk
 function interruptHelper() {
-  if (currentAudio || window.speechSynthesis.speaking) {
+  if (isSpeaking || window.speechSynthesis.speaking) {
     stopSpeaking();
     var avatar = document.getElementById('chatAvatar');
     if (avatar) avatar.classList.remove('talking');
