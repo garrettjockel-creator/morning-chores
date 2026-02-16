@@ -2,354 +2,961 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Morning Chores</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <style>
+    :root {
+      --primary: #667eea;
+      --primary-dark: #764ba2;
+      --green: #34d399;
+      --green-dark: #22c55e;
+      --gold: #fbbf24;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-
-    .container {
-      background: white;
-      border-radius: 24px;
-      padding: 40px 36px;
-      max-width: 500px;
-      width: 100%;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 32px;
-    }
-
-    .header .sun {
-      font-size: 56px;
-      line-height: 1;
-      margin-bottom: 8px;
-    }
-
-    .header h1 {
-      font-size: 32px;
-      font-weight: 800;
-      color: #1a1a2e;
-    }
-
-    .header .date {
-      font-size: 16px;
-      color: #888;
-      margin-top: 4px;
-    }
-
-    .chore-list {
-      list-style: none;
+      height: 100vh;
+      height: -webkit-fill-available;
       display: flex;
       flex-direction: column;
-      gap: 14px;
-    }
-
-    .chore-item {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      background: #f7f7fb;
-      border: 2px solid #ebebf0;
-      border-radius: 16px;
-      padding: 18px 20px;
-      cursor: pointer;
-      transition: all 0.25s ease;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .chore-item:active {
-      transform: scale(0.97);
-    }
-
-    .chore-item.done {
-      background: #e8f9ee;
-      border-color: #34d399;
-    }
-
-    .checkbox {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      border: 3px solid #ccc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.25s ease;
-      background: white;
-    }
-
-    .chore-item.done .checkbox {
-      background: #34d399;
-      border-color: #34d399;
-    }
-
-    .checkbox svg {
-      width: 20px;
-      height: 20px;
-      stroke: white;
-      stroke-width: 3;
-      fill: none;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-
-    .chore-item.done .checkbox svg {
-      opacity: 1;
-    }
-
-    .chore-info {
-      flex: 1;
-    }
-
-    .chore-title {
-      font-size: 19px;
-      font-weight: 700;
+      -webkit-user-select: none;
+      user-select: none;
       color: #1a1a2e;
-      transition: color 0.25s ease;
-    }
-
-    .chore-item.done .chore-title {
-      color: #22c55e;
-      text-decoration: line-through;
-    }
-
-    .chore-subtitle {
-      font-size: 14px;
-      color: #999;
-      margin-top: 2px;
-    }
-
-    .chore-icon {
-      font-size: 32px;
-      flex-shrink: 0;
-    }
-
-    .progress-section {
-      margin-top: 28px;
-      text-align: center;
-    }
-
-    .progress-bar-bg {
-      width: 100%;
-      height: 14px;
-      background: #ebebf0;
-      border-radius: 7px;
       overflow: hidden;
     }
 
+    /* ===== TOP BAR ===== */
+    #topBar {
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 10px 14px;
+      padding-top: max(env(safe-area-inset-top), 10px);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: white;
+    }
+    .top-left { flex-shrink: 0; }
+    .top-name { font-size: 17px; font-weight: 800; }
+    .top-level { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+    .level-badge {
+      background: rgba(255,255,255,0.25);
+      padding: 1px 7px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .level-title { font-size: 12px; opacity: 0.9; }
+    .top-xp { flex: 1; min-width: 0; }
+    .xp-bar {
+      height: 8px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .xp-fill {
+      height: 100%;
+      background: var(--gold);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+    .xp-text { font-size: 10px; opacity: 0.8; display: block; margin-top: 2px; }
+    .top-streak { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+    .streak-fire { font-size: 20px; }
+    .streak-count { font-size: 16px; font-weight: 800; }
+    .settings-link {
+      color: white;
+      text-decoration: none;
+      font-size: 20px;
+      opacity: 0.6;
+      flex-shrink: 0;
+      padding: 4px;
+    }
+
+    /* ===== TAB CONTENT ===== */
+    #tabContent {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 14px 16px 16px;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ===== TAB BAR ===== */
+    #tabBar {
+      flex-shrink: 0;
+      display: flex;
+      background: white;
+      border-top: 2px solid #e5e7eb;
+      padding: 4px 0;
+      padding-bottom: max(env(safe-area-inset-bottom), 6px);
+    }
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      font-size: 11px;
+      font-weight: 600;
+      color: #aaa;
+      padding: 6px 2px 2px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn.active { color: var(--primary); }
+    .tab-icon { font-size: 22px; }
+
+    /* ===== CHORES TAB ===== */
+    .date-display {
+      text-align: center;
+      color: rgba(255,255,255,0.8);
+      font-size: 15px;
+      margin-bottom: 14px;
+      font-weight: 600;
+    }
+    .chore-card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px 18px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+      border: 2px solid transparent;
+    }
+    .chore-card:active { transform: scale(0.97); }
+    .chore-card.done { background: #e8f9ee; border-color: var(--green); }
+    .chore-check {
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      border: 3px solid #d1d5db;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.25s ease;
+      background: white;
+    }
+    .chore-card.done .chore-check { background: var(--green); border-color: var(--green); }
+    .chore-check svg {
+      width: 18px; height: 18px;
+      stroke: white; stroke-width: 3; fill: none;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .chore-card.done .chore-check svg { opacity: 1; }
+    .chore-info { flex: 1; }
+    .chore-title-text { font-size: 17px; font-weight: 700; }
+    .chore-card.done .chore-title-text { color: var(--green-dark); text-decoration: line-through; }
+    .chore-subtitle-text { font-size: 13px; color: #999; margin-top: 1px; }
+    .chore-icon-display { font-size: 30px; flex-shrink: 0; }
+    .chore-xp { position: absolute; top: 5px; right: 10px; font-size: 10px; font-weight: 700; color: var(--gold); }
+
+    /* Daily Progress */
+    .daily-progress {
+      margin-top: 14px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .progress-bar-bg {
+      width: 100%; height: 12px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 6px; overflow: hidden;
+    }
     .progress-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, #34d399, #22c55e);
-      border-radius: 7px;
+      background: linear-gradient(90deg, var(--green), var(--green-dark));
+      border-radius: 6px;
       transition: width 0.4s ease;
       width: 0%;
     }
-
-    .progress-text {
-      margin-top: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      color: #555;
-    }
-
-    .all-done {
-      display: none;
-      margin-top: 24px;
-      text-align: center;
+    .progress-text { margin-top: 6px; font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.9); }
+    .all-done-banner {
+      display: none; margin-top: 18px; text-align: center;
+      background: white; border-radius: 16px; padding: 22px;
       animation: pop 0.5s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .all-done-banner.visible { display: block; }
+    .all-done-trophy { font-size: 52px; }
+    .all-done-msg { font-size: 20px; font-weight: 800; color: var(--green-dark); margin-top: 4px; }
+    .all-done-sub { font-size: 13px; color: #888; margin-top: 4px; }
+
+    /* ===== BADGES TAB ===== */
+    .badges-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .badge-card {
+      background: white; border-radius: 14px;
+      padding: 14px 6px; text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.3s;
+    }
+    .badge-card.locked { opacity: 0.45; filter: grayscale(1); }
+    .badge-emoji { font-size: 34px; }
+    .badge-name { font-size: 11px; font-weight: 700; color: #333; margin-top: 4px; line-height: 1.2; }
+    .badge-card.locked .badge-name { color: #999; }
+
+    /* ===== CHAT TAB ===== */
+    .chat-container { display: flex; flex-direction: column; height: calc(100vh - 160px); }
+    .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
+    .chat-bubble {
+      max-width: 80%; padding: 10px 14px;
+      border-radius: 16px; font-size: 15px;
+      line-height: 1.4; word-wrap: break-word;
+    }
+    .chat-bubble.assistant {
+      background: white; color: #333;
+      border-bottom-left-radius: 4px; align-self: flex-start;
+    }
+    .chat-bubble.user {
+      background: var(--primary); color: white;
+      border-bottom-right-radius: 4px; align-self: flex-end;
+    }
+    .chat-input-area { display: flex; gap: 8px; padding-top: 8px; flex-shrink: 0; }
+    .chat-input {
+      flex: 1; padding: 10px 14px; border: none;
+      border-radius: 20px; font-size: 16px;
+      background: white; outline: none;
+    }
+    .chat-send-btn {
+      background: var(--primary); color: white; border: none;
+      border-radius: 20px; padding: 10px 18px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .chat-typing {
+      display: none; padding: 6px 0;
+      color: rgba(255,255,255,0.7); font-style: italic; font-size: 13px;
+    }
+    .chat-disabled {
+      text-align: center; color: rgba(255,255,255,0.7);
+      padding: 40px 20px; font-size: 15px;
     }
 
-    .all-done.visible {
-      display: block;
+    /* ===== ACTIVITIES TAB ===== */
+    .activity-category { margin-bottom: 18px; }
+    .activity-category-title {
+      color: white; font-size: 15px; font-weight: 700;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+    }
+    .activity-scroll {
+      display: flex; gap: 10px; overflow-x: auto;
+      padding-bottom: 6px; -webkit-overflow-scrolling: touch;
+    }
+    .activity-scroll::-webkit-scrollbar { display: none; }
+    .activity-card {
+      background: white; border-radius: 14px;
+      padding: 12px 14px; min-width: 120px;
+      flex-shrink: 0; text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      cursor: pointer; transition: transform 0.2s;
+    }
+    .activity-card:active { transform: scale(0.95); }
+    .activity-emoji { font-size: 30px; }
+    .activity-name { font-size: 12px; font-weight: 600; color: #333; margin-top: 4px; }
+    .pick-btn {
+      display: block; margin: 0 auto 18px;
+      background: white; border: none; border-radius: 20px;
+      padding: 10px 24px; font-size: 15px; font-weight: 700;
+      color: var(--primary); cursor: pointer;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    }
+    .pick-btn:active { transform: scale(0.95); }
+    .pick-result {
+      display: none; text-align: center; background: white;
+      border-radius: 16px; padding: 20px; margin-bottom: 18px;
+      animation: pop 0.4s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .pick-result.visible { display: block; }
+    .pick-result-emoji { font-size: 48px; }
+    .pick-result-text { font-size: 18px; font-weight: 700; margin-top: 6px; color: #333; }
+
+    /* ===== MODALS ===== */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal-content {
+      background: white; border-radius: 24px;
+      padding: 28px; text-align: center;
+      max-width: 300px; width: 85%;
+      animation: pop 0.4s ease;
+    }
+    .modal-emoji { font-size: 56px; }
+    .modal-title { font-size: 22px; font-weight: 800; margin-top: 8px; }
+    .modal-subtitle { font-size: 14px; color: #666; margin-top: 6px; }
+    .modal-btn {
+      margin-top: 16px; background: var(--primary); color: white;
+      border: none; border-radius: 12px;
+      padding: 10px 28px; font-size: 15px; font-weight: 700; cursor: pointer;
     }
 
-    .all-done .trophy {
-      font-size: 64px;
+    /* ===== CONFETTI ===== */
+    #confettiCanvas {
+      display: none; position: fixed; inset: 0;
+      z-index: 999; pointer-events: none;
     }
 
-    .all-done .message {
-      font-size: 22px;
-      font-weight: 800;
-      color: #22c55e;
-      margin-top: 8px;
+    /* ===== STICKER POP ===== */
+    .sticker-pop {
+      position: fixed; font-size: 44px; z-index: 998;
+      pointer-events: none; animation: stickerFloat 1s ease forwards;
     }
-
-    .all-done .sub {
-      font-size: 15px;
-      color: #888;
-      margin-top: 4px;
+    @keyframes stickerFloat {
+      0% { transform: scale(0); opacity: 1; }
+      30% { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(1) translateY(-80px); opacity: 0; }
     }
-
     @keyframes pop {
       0% { transform: scale(0.5); opacity: 0; }
-      70% { transform: scale(1.1); }
+      70% { transform: scale(1.05); }
       100% { transform: scale(1); opacity: 1; }
     }
+
+    /* ===== LOADING ===== */
+    #loadingScreen {
+      display: flex; align-items: center; justify-content: center;
+      flex: 1; color: white; font-size: 18px; font-weight: 600;
+    }
+    .loading-spinner {
+      display: inline-block; width: 22px; height: 22px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin-right: 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <div class="header">
-    <div class="sun">&#9728;&#65039;</div>
-    <h1>Morning Chores</h1>
-    <div class="date" id="dateDisplay"></div>
-  </div>
+  <!-- Loading -->
+  <div id="loadingScreen"><div class="loading-spinner"></div>Loading...</div>
 
-  <ul class="chore-list" id="choreList">
-    <li class="chore-item" data-id="feed-lexi" onclick="toggleChore(this)">
-      <div class="checkbox">
-        <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
-      </div>
-      <div class="chore-info">
-        <div class="chore-title">Feed Lexi</div>
-        <div class="chore-subtitle">Give her food & fresh water</div>
-      </div>
-      <div class="chore-icon">&#128054;</div>
-    </li>
+  <!-- App -->
+  <div id="app" style="display:none;flex-direction:column;height:100vh;height:-webkit-fill-available;">
 
-    <li class="chore-item" data-id="pushups" onclick="toggleChore(this)">
-      <div class="checkbox">
-        <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
+    <!-- Top Bar -->
+    <div id="topBar">
+      <div class="top-left">
+        <div class="top-name" id="childName">Buddy</div>
+        <div class="top-level">
+          <span class="level-badge" id="levelBadge">Lv.1</span>
+          <span class="level-title" id="levelTitle">Little Helper</span>
+        </div>
       </div>
-      <div class="chore-info">
-        <div class="chore-title">30 Push-Ups</div>
-        <div class="chore-subtitle">Get strong!</div>
+      <div class="top-xp">
+        <div class="xp-bar"><div class="xp-fill" id="xpFill"></div></div>
+        <span class="xp-text" id="xpText">0 / 50 XP</span>
       </div>
-      <div class="chore-icon">&#128170;</div>
-    </li>
-
-    <li class="chore-item" data-id="dishes-load" onclick="toggleChore(this)">
-      <div class="checkbox">
-        <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
+      <div class="top-streak">
+        <span class="streak-fire">🔥</span>
+        <span class="streak-count" id="streakCount">0</span>
       </div>
-      <div class="chore-info">
-        <div class="chore-title">Load the Dishwasher</div>
-        <div class="chore-subtitle">Put dirty dishes in (if needed)</div>
-      </div>
-      <div class="chore-icon">&#129523;</div>
-    </li>
-
-    <li class="chore-item" data-id="dishes-unload" onclick="toggleChore(this)">
-      <div class="checkbox">
-        <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
-      </div>
-      <div class="chore-info">
-        <div class="chore-title">Unload the Dishwasher</div>
-        <div class="chore-subtitle">Put clean dishes away (if needed)</div>
-      </div>
-      <div class="chore-icon">&#10024;</div>
-    </li>
-
-    <li class="chore-item" data-id="reading" onclick="toggleChore(this)">
-      <div class="checkbox">
-        <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
-      </div>
-      <div class="chore-info">
-        <div class="chore-title">Read About Jesus</div>
-        <div class="chore-subtitle">10 minutes of Bible reading</div>
-      </div>
-      <div class="chore-icon">&#128214;</div>
-    </li>
-  </ul>
-
-  <div class="progress-section">
-    <div class="progress-bar-bg">
-      <div class="progress-bar-fill" id="progressFill"></div>
+      <a href="parent.html" class="settings-link">⚙️</a>
     </div>
-    <div class="progress-text" id="progressText">0 of 5 done</div>
+
+    <!-- Tab Content -->
+    <div id="tabContent">
+
+      <!-- CHORES -->
+      <div id="choresTab" class="tab-panel active">
+        <div class="date-display" id="dateDisplay"></div>
+        <div id="choreList"></div>
+        <div class="daily-progress">
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+          <div class="progress-text" id="progressText">0 of 0 done</div>
+        </div>
+        <div class="all-done-banner" id="allDoneBanner">
+          <div class="all-done-trophy">🏆</div>
+          <div class="all-done-msg">All Chores Done!</div>
+          <div class="all-done-sub">Great job today! You're a champion!</div>
+        </div>
+      </div>
+
+      <!-- BADGES -->
+      <div id="badgesTab" class="tab-panel">
+        <div id="badgesContainer"></div>
+      </div>
+
+      <!-- CHAT -->
+      <div id="chatTab" class="tab-panel">
+        <div id="chatContent"></div>
+      </div>
+
+      <!-- ACTIVITIES -->
+      <div id="activitiesTab" class="tab-panel">
+        <div id="activitiesContainer"></div>
+      </div>
+
+    </div>
+
+    <!-- Tab Bar -->
+    <nav id="tabBar">
+      <button class="tab-btn active" data-tab="chores" onclick="switchTab('chores')">
+        <span class="tab-icon">⭐</span>Chores
+      </button>
+      <button class="tab-btn" data-tab="badges" onclick="switchTab('badges')">
+        <span class="tab-icon">🏆</span>Badges
+      </button>
+      <button class="tab-btn" data-tab="chat" onclick="switchTab('chat')">
+        <span class="tab-icon">💬</span>Chat
+      </button>
+      <button class="tab-btn" data-tab="activities" onclick="switchTab('activities')">
+        <span class="tab-icon">💡</span>Ideas
+      </button>
+    </nav>
   </div>
 
-  <div class="all-done" id="allDone">
-    <div class="trophy">&#127942;</div>
-    <div class="message">All Chores Done!</div>
-    <div class="sub">Great job today! You're a champion.</div>
+  <!-- Level Up Modal -->
+  <div class="modal-overlay" id="levelUpModal">
+    <div class="modal-content">
+      <div class="modal-emoji">🎉</div>
+      <div class="modal-title">Level Up!</div>
+      <div class="modal-subtitle" id="levelUpSub"></div>
+      <button class="modal-btn" onclick="closeModal('levelUpModal')">Awesome!</button>
+    </div>
   </div>
-</div>
+
+  <!-- Badge Modal -->
+  <div class="modal-overlay" id="badgeModal">
+    <div class="modal-content">
+      <div class="modal-emoji" id="badgeModalEmoji">⭐</div>
+      <div class="modal-title">Badge Unlocked!</div>
+      <div class="modal-subtitle" id="badgeModalName"></div>
+      <button class="modal-btn" onclick="closeModal('badgeModal')">Cool!</button>
+    </div>
+  </div>
+
+  <canvas id="confettiCanvas"></canvas>
 
 <script>
-  const STORAGE_KEY = 'morningChores';
+// =============================================================
+// FIREBASE CONFIG — Replace these with your project's values
+// from console.firebase.google.com → Project Settings → Web App
+// =============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyC08HJ3Q8yitpJyTG28nhrWhZBv2s3YDwE",
+  authDomain: "morning-chores-ee2f3.firebaseapp.com",
+  projectId: "morning-chores-ee2f3",
+  storageBucket: "morning-chores-ee2f3.firebasestorage.app",
+  messagingSenderId: "374643848407",
+  appId: "1:374643848407:web:642a57af25f97f037cec92"
+};
 
-  function getTodayKey() {
-    const d = new Date();
-    return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+// ===== CONSTANTS =====
+const LEVELS = [
+  { level: 1,  xp: 0,    title: 'Little Helper' },
+  { level: 2,  xp: 50,   title: 'Rising Star' },
+  { level: 3,  xp: 150,  title: 'Super Helper' },
+  { level: 4,  xp: 300,  title: 'Chore Champion' },
+  { level: 5,  xp: 500,  title: 'Mighty Worker' },
+  { level: 6,  xp: 750,  title: 'Golden Knight' },
+  { level: 7,  xp: 1050, title: 'Super Duper Star' },
+  { level: 8,  xp: 1400, title: 'Hero of the House' },
+  { level: 9,  xp: 1800, title: 'Legendary Helper' },
+  { level: 10, xp: 2300, title: 'Ultimate Champion' },
+];
+
+const BADGES = [
+  { id: 'first-chore', emoji: '⭐', name: 'First Step',       desc: 'Complete your first chore' },
+  { id: 'clean-sweep', emoji: '🧹', name: 'Clean Sweep',      desc: 'Complete all chores in a day' },
+  { id: 'streak-3',    emoji: '🔥', name: '3-Day Streak',     desc: '3 days in a row!' },
+  { id: 'streak-7',    emoji: '💥', name: 'Week Warrior',     desc: '7-day streak!' },
+  { id: 'streak-14',   emoji: '💪', name: 'Two-Week Titan',   desc: '14-day streak!' },
+  { id: 'streak-30',   emoji: '👑', name: 'Monthly Master',   desc: '30-day streak!' },
+  { id: 'level-3',     emoji: '🌟', name: 'Super Helper',     desc: 'Reach Level 3' },
+  { id: 'level-5',     emoji: '⚔️', name: 'Mighty Worker',    desc: 'Reach Level 5' },
+  { id: 'level-8',     emoji: '🏰', name: 'Hero Badge',       desc: 'Reach Level 8' },
+  { id: 'xp-100',      emoji: '💎', name: 'XP Hunter',        desc: 'Earn 100 XP' },
+  { id: 'xp-500',      emoji: '🏆', name: 'XP Master',        desc: 'Earn 500 XP' },
+  { id: 'goal-setter', emoji: '🎯', name: 'Goal Setter',      desc: 'Set your first goal' },
+  { id: 'goal-getter', emoji: '✅', name: 'Goal Getter',      desc: 'Complete a goal' },
+  { id: 'bible-10',    emoji: '📖', name: 'Bible Reader',     desc: 'Read the Bible 10 times' },
+];
+
+const ACTIVITIES = {
+  outdoor: {
+    title: 'Outdoor Adventures', icon: '🌳',
+    items: [
+      { emoji: '🚲', name: 'Ride your bike' },
+      { emoji: '⚾', name: 'Play catch' },
+      { emoji: '🥾', name: 'Nature walk' },
+      { emoji: '🤸', name: 'Trampoline time' },
+      { emoji: '🏗️', name: 'Build a fort' },
+      { emoji: '🏃', name: 'Race around the yard' },
+    ]
+  },
+  creative: {
+    title: 'Creative Time', icon: '🎨',
+    items: [
+      { emoji: '✏️', name: 'Draw a picture' },
+      { emoji: '🧱', name: 'Build with LEGO' },
+      { emoji: '🎭', name: 'Puppet show' },
+      { emoji: '🎵', name: 'Make up a song' },
+      { emoji: '✂️', name: 'Craft project' },
+      { emoji: '📦', name: 'Build with boxes' },
+    ]
+  },
+  learning: {
+    title: 'Learning Fun', icon: '📚',
+    items: [
+      { emoji: '📖', name: 'Read a book' },
+      { emoji: '✍️', name: 'Practice writing' },
+      { emoji: '🔢', name: 'Practice math' },
+      { emoji: '🧩', name: 'Do a puzzle' },
+      { emoji: '🔬', name: 'Science experiment' },
+      { emoji: '🗺️', name: 'Learn about a country' },
+    ]
+  },
+  helping: {
+    title: 'Helping Others', icon: '🤝',
+    items: [
+      { emoji: '🍳', name: 'Help make a meal' },
+      { emoji: '🌱', name: 'Water the plants' },
+      { emoji: '🧹', name: 'Clean up a room' },
+      { emoji: '👕', name: 'Fold laundry' },
+      { emoji: '💌', name: 'Make a card' },
+      { emoji: '🐕', name: 'Play with Lexi' },
+    ]
+  },
+  faith: {
+    title: 'Faith & Prayer', icon: '✝️',
+    items: [
+      { emoji: '🙏', name: 'Pray for someone' },
+      { emoji: '🎶', name: 'Worship song' },
+      { emoji: '📖', name: 'Bible story' },
+      { emoji: '❤️', name: 'Tell about Jesus' },
+      { emoji: '🎨', name: 'Draw for God' },
+      { emoji: '😊', name: '3 thankful things' },
+    ]
   }
+};
 
-  function loadState() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (saved && saved.date === getTodayKey()) {
-        return saved.done;
-      }
-    } catch (e) {}
-    return [];
-  }
+const STICKER_EMOJIS = ['⭐','🌟','✨','💫','🎯','👍','🙌','💪','🎉','🌈'];
 
-  function saveState(doneIds) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      date: getTodayKey(),
-      done: doneIds
-    }));
-  }
+const DEFAULT_CHORES = [
+  { title: 'Feed Lexi', subtitle: 'Give her food & fresh water', icon: '🐶', xp: 10, order: 1, active: true },
+  { title: '30 Push-Ups', subtitle: 'Get strong!', icon: '💪', xp: 10, order: 2, active: true },
+  { title: 'Load the Dishwasher', subtitle: 'Put dirty dishes in', icon: '🧽', xp: 10, order: 3, active: true },
+  { title: 'Unload the Dishwasher', subtitle: 'Put clean dishes away', icon: '✨', xp: 10, order: 4, active: true },
+  { title: 'Read About Jesus', subtitle: '10 minutes of Bible reading', icon: '📖', xp: 10, order: 5, active: true, specialTrack: 'bible' },
+];
 
-  function updateProgress() {
-    const items = document.querySelectorAll('.chore-item');
-    const doneCount = document.querySelectorAll('.chore-item.done').length;
-    const total = items.length;
-    const pct = Math.round((doneCount / total) * 100);
+// ===== STATE =====
+let db;
+let profile = {
+  xp: 0, streak: 0, lastAllDoneDate: null,
+  badges: [], bibleReadCount: 0,
+  totalChoresCompleted: 0, goalsSet: 0, goalsCompleted: 0,
+};
+let chores = [];
+let todayDoc = { done: [], xpAwarded: [], allDoneBonus: false };
+let config = { childName: 'Buddy', chatEnabled: true, workerUrl: '' };
+let chatHistory = [];
 
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressText').textContent = doneCount + ' of ' + total + ' done';
-
-    const allDone = document.getElementById('allDone');
-    if (doneCount === total) {
-      allDone.classList.add('visible');
-    } else {
-      allDone.classList.remove('visible');
+// ===== UTILITIES =====
+function getToday() { return new Date().toISOString().split('T')[0]; }
+function getYesterday() {
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+}
+function getLevelInfo(xp) {
+  let cur = LEVELS[0], nxt = LEVELS[1];
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (xp >= LEVELS[i].xp) {
+      cur = LEVELS[i]; nxt = LEVELS[i + 1] || null; break;
     }
   }
+  const inLvl = xp - cur.xp;
+  const need = nxt ? nxt.xp - cur.xp : 0;
+  return { level: cur.level, title: cur.title, xp, inLvl, need, progress: nxt ? inLvl / need : 1, isMax: !nxt };
+}
 
-  function toggleChore(el) {
-    el.classList.toggle('done');
+// ===== FIREBASE =====
+async function initFirebase() {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  try { await db.enablePersistence(); } catch (e) { /* ok */ }
+}
 
-    const doneIds = [];
-    document.querySelectorAll('.chore-item.done').forEach(item => {
-      doneIds.push(item.dataset.id);
-    });
-    saveState(doneIds);
-    updateProgress();
+async function loadConfig() {
+  const doc = await db.collection('config').doc('settings').get();
+  if (doc.exists) config = { ...config, ...doc.data() };
+  else await db.collection('config').doc('settings').set(config);
+}
+
+async function loadProfile() {
+  const doc = await db.collection('profile').doc('main').get();
+  if (doc.exists) profile = { ...profile, ...doc.data() };
+  else await db.collection('profile').doc('main').set(profile);
+}
+
+async function loadChores() {
+  let snap = await db.collection('chores').orderBy('order').get();
+  if (snap.empty) {
+    const batch = db.batch();
+    DEFAULT_CHORES.forEach(c => batch.set(db.collection('chores').doc(), c));
+    await batch.commit();
+    snap = await db.collection('chores').orderBy('order').get();
+  }
+  chores = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.active !== false);
+}
+
+async function loadToday() {
+  const doc = await db.collection('completions').doc(getToday()).get();
+  if (doc.exists) todayDoc = { done: [], xpAwarded: [], allDoneBonus: false, ...doc.data() };
+}
+
+async function saveProfile() { await db.collection('profile').doc('main').set(profile); }
+async function saveToday() { await db.collection('completions').doc(getToday()).set(todayDoc); }
+
+// ===== STREAK =====
+function checkStreakOnLoad() {
+  if (!profile.lastAllDoneDate) return;
+  const today = getToday(), yesterday = getYesterday();
+  if (profile.lastAllDoneDate === today || profile.lastAllDoneDate === yesterday) return;
+  profile.streak = 0; // broken
+}
+
+// ===== CHORE TOGGLE =====
+async function toggleChore(choreId) {
+  const idx = todayDoc.done.indexOf(choreId);
+  const chore = chores.find(c => c.id === choreId);
+  if (!chore) return;
+
+  if (idx === -1) {
+    // Complete
+    todayDoc.done.push(choreId);
+    if (!todayDoc.xpAwarded.includes(choreId)) {
+      todayDoc.xpAwarded.push(choreId);
+      const oldLvl = getLevelInfo(profile.xp).level;
+      profile.xp += (chore.xp || 10);
+      profile.totalChoresCompleted += 1;
+      if (chore.specialTrack === 'bible') profile.bibleReadCount = (profile.bibleReadCount || 0) + 1;
+      const newLvl = getLevelInfo(profile.xp).level;
+      if (newLvl > oldLvl) setTimeout(() => showLevelUp(newLvl), 300);
+      showStickerPop(choreId);
+    }
+    // All done?
+    if (todayDoc.done.length >= chores.length && !todayDoc.allDoneBonus) {
+      todayDoc.allDoneBonus = true;
+      profile.xp += 25;
+      const today = getToday(), yesterday = getYesterday();
+      if (profile.lastAllDoneDate === yesterday) profile.streak += 1;
+      else if (profile.lastAllDoneDate !== today) profile.streak = 1;
+      profile.lastAllDoneDate = today;
+      if ([3,7,14,30].includes(profile.streak)) profile.xp += profile.streak * 5;
+      setTimeout(showConfetti, 200);
+    }
+    checkBadges();
+  } else {
+    todayDoc.done.splice(idx, 1);
   }
 
-  // Set the date display
-  const now = new Date();
-  const options = { weekday: 'long', month: 'long', day: 'numeric' };
-  document.getElementById('dateDisplay').textContent = now.toLocaleDateString('en-US', options);
+  await Promise.all([saveProfile(), saveToday()]);
+  renderChores(); updateTopBar(); updateProgress();
+}
 
-  // Restore today's state
-  const done = loadState();
-  done.forEach(id => {
-    const el = document.querySelector('[data-id="' + id + '"]');
-    if (el) el.classList.add('done');
+// ===== BADGES =====
+function checkBadges() {
+  const info = getLevelInfo(profile.xp);
+  const checks = {
+    'first-chore': profile.totalChoresCompleted >= 1,
+    'clean-sweep': profile.lastAllDoneDate !== null,
+    'streak-3': profile.streak >= 3,
+    'streak-7': profile.streak >= 7,
+    'streak-14': profile.streak >= 14,
+    'streak-30': profile.streak >= 30,
+    'level-3': info.level >= 3,
+    'level-5': info.level >= 5,
+    'level-8': info.level >= 8,
+    'xp-100': profile.xp >= 100,
+    'xp-500': profile.xp >= 500,
+    'goal-setter': (profile.goalsSet || 0) >= 1,
+    'goal-getter': (profile.goalsCompleted || 0) >= 1,
+    'bible-10': (profile.bibleReadCount || 0) >= 10,
+  };
+  let newBadge = null;
+  for (const [id, earned] of Object.entries(checks)) {
+    if (earned && !profile.badges.includes(id)) {
+      profile.badges.push(id);
+      if (!newBadge) newBadge = BADGES.find(b => b.id === id);
+    }
+  }
+  if (newBadge) setTimeout(() => showBadgeUnlock(newBadge), 600);
+  renderBadges();
+}
+
+// ===== RENDERING =====
+function updateTopBar() {
+  const info = getLevelInfo(profile.xp);
+  document.getElementById('childName').textContent = config.childName || 'Buddy';
+  document.getElementById('levelBadge').textContent = 'Lv.' + info.level;
+  document.getElementById('levelTitle').textContent = info.title;
+  document.getElementById('xpFill').style.width = (info.progress * 100) + '%';
+  document.getElementById('xpText').textContent = info.isMax ? 'MAX LEVEL!' : info.inLvl + ' / ' + info.need + ' XP';
+  document.getElementById('streakCount').textContent = profile.streak;
+}
+
+function renderChores() {
+  const list = document.getElementById('choreList');
+  list.innerHTML = '';
+  chores.forEach(c => {
+    const done = todayDoc.done.includes(c.id);
+    const div = document.createElement('div');
+    div.className = 'chore-card' + (done ? ' done' : '');
+    div.id = 'chore-' + c.id;
+    div.onclick = () => toggleChore(c.id);
+    div.innerHTML =
+      '<div class="chore-check"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div>' +
+      '<div class="chore-info"><div class="chore-title-text">' + c.title + '</div>' +
+      '<div class="chore-subtitle-text">' + (c.subtitle || '') + '</div></div>' +
+      '<div class="chore-icon-display">' + c.icon + '</div>' +
+      '<div class="chore-xp">+' + (c.xp || 10) + ' XP</div>';
+    list.appendChild(div);
   });
-  updateProgress();
-</script>
+}
 
+function updateProgress() {
+  const done = todayDoc.done.length, total = chores.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = done + ' of ' + total + ' done';
+  const banner = document.getElementById('allDoneBanner');
+  if (done >= total && total > 0) banner.classList.add('visible');
+  else banner.classList.remove('visible');
+}
+
+function renderBadges() {
+  document.getElementById('badgesContainer').innerHTML =
+    '<div class="badges-grid">' + BADGES.map(b =>
+      '<div class="badge-card ' + (profile.badges.includes(b.id) ? '' : 'locked') + '">' +
+      '<div class="badge-emoji">' + b.emoji + '</div>' +
+      '<div class="badge-name">' + b.name + '</div></div>'
+    ).join('') + '</div>';
+}
+
+function renderChat() {
+  const el = document.getElementById('chatContent');
+  if (!config.workerUrl) {
+    el.innerHTML = '<div class="chat-disabled">💬<br><br>Chat is not set up yet.<br>Ask a parent to configure it!</div>';
+    return;
+  }
+  el.innerHTML =
+    '<div class="chat-container">' +
+    '<div class="chat-messages" id="chatMessages">' +
+    '<div class="chat-bubble assistant">Hi! I\'m Helper! What should we do today? 😊</div>' +
+    '</div>' +
+    '<div class="chat-typing" id="chatTyping">Helper is thinking...</div>' +
+    '<div class="chat-input-area">' +
+    '<input type="text" class="chat-input" id="chatInput" placeholder="Say something..." maxlength="200">' +
+    '<button class="chat-send-btn" onclick="sendChat()">Send</button>' +
+    '</div></div>';
+  document.getElementById('chatInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendChat();
+  });
+}
+
+function renderActivities() {
+  let html = '<button class="pick-btn" onclick="pickRandom()">🎲 Pick For Me!</button>' +
+    '<div class="pick-result" id="pickResult"><div class="pick-result-emoji" id="pickEmoji"></div>' +
+    '<div class="pick-result-text" id="pickText"></div></div>';
+  for (const cat of Object.values(ACTIVITIES)) {
+    html += '<div class="activity-category"><div class="activity-category-title">' +
+      cat.icon + ' ' + cat.title + '</div><div class="activity-scroll">' +
+      cat.items.map(i =>
+        '<div class="activity-card"><div class="activity-emoji">' + i.emoji +
+        '</div><div class="activity-name">' + i.name + '</div></div>'
+      ).join('') + '</div></div>';
+  }
+  document.getElementById('activitiesContainer').innerHTML = html;
+}
+
+function pickRandom() {
+  const all = Object.values(ACTIVITIES).flatMap(c => c.items);
+  const pick = all[Math.floor(Math.random() * all.length)];
+  document.getElementById('pickEmoji').textContent = pick.emoji;
+  document.getElementById('pickText').textContent = pick.name;
+  const el = document.getElementById('pickResult');
+  el.classList.remove('visible');
+  void el.offsetWidth; // reflow for re-animation
+  el.classList.add('visible');
+}
+
+// ===== TAB SWITCHING =====
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tab + 'Tab').classList.add('active');
+  document.querySelector('[data-tab="' + tab + '"]').classList.add('active');
+}
+
+// ===== ANIMATIONS =====
+function showConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const particles = [];
+  const colors = ['#ff0000','#00cc44','#0066ff','#ffdd00','#ff00ff','#00cccc','#ff6600','#ff69b4'];
+  for (let i = 0; i < 120; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: -10 - Math.random() * 300,
+      w: 5 + Math.random() * 6, h: 3 + Math.random() * 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 4, vy: 2 + Math.random() * 4,
+      rot: Math.random() * 360, rs: (Math.random() - 0.5) * 10,
+    });
+  }
+  let frame = 0;
+  (function go() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.rot += p.rs;
+      if (p.y < canvas.height + 20) alive = true;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    }
+    if (alive && ++frame < 250) requestAnimationFrame(go);
+    else canvas.style.display = 'none';
+  })();
+}
+
+function showStickerPop(choreId) {
+  const el = document.getElementById('chore-' + choreId);
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const s = document.createElement('div');
+  s.className = 'sticker-pop';
+  s.textContent = STICKER_EMOJIS[Math.floor(Math.random() * STICKER_EMOJIS.length)];
+  s.style.left = (r.left + r.width / 2 - 22) + 'px';
+  s.style.top = r.top + 'px';
+  document.body.appendChild(s);
+  setTimeout(() => s.remove(), 1000);
+}
+
+function showLevelUp(level) {
+  const info = LEVELS.find(l => l.level === level);
+  document.getElementById('levelUpSub').textContent =
+    'Level ' + level + ' — ' + (info ? info.title : '') + '!';
+  document.getElementById('levelUpModal').classList.add('visible');
+  showConfetti();
+}
+
+function showBadgeUnlock(badge) {
+  document.getElementById('badgeModalEmoji').textContent = badge.emoji;
+  document.getElementById('badgeModalName').textContent = badge.name + ' — ' + badge.desc;
+  document.getElementById('badgeModal').classList.add('visible');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
+
+// ===== CHAT =====
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  const msgs = document.getElementById('chatMessages');
+  const userDiv = document.createElement('div');
+  userDiv.className = 'chat-bubble user';
+  userDiv.textContent = text;
+  msgs.appendChild(userDiv);
+  chatHistory.push({ role: 'user', content: text });
+  msgs.scrollTop = msgs.scrollHeight;
+
+  document.getElementById('chatTyping').style.display = 'block';
+
+  try {
+    const res = await fetch(config.workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: chatHistory.slice(-10),
+        context: { name: config.childName, level: getLevelInfo(profile.xp).title, streak: profile.streak }
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || data.reply || "Hmm, I'm not sure what to say!";
+    const botDiv = document.createElement('div');
+    botDiv.className = 'chat-bubble assistant';
+    botDiv.textContent = reply;
+    msgs.appendChild(botDiv);
+    chatHistory.push({ role: 'assistant', content: reply });
+  } catch (e) {
+    const errDiv = document.createElement('div');
+    errDiv.className = 'chat-bubble assistant';
+    errDiv.textContent = "Oops! I can't talk right now. Try again later!";
+    msgs.appendChild(errDiv);
+  }
+
+  document.getElementById('chatTyping').style.display = 'none';
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ===== INIT =====
+async function init() {
+  try {
+    await initFirebase();
+    await Promise.all([loadConfig(), loadProfile(), loadChores()]);
+    await loadToday();
+    checkStreakOnLoad();
+
+    const opts = { weekday: 'long', month: 'long', day: 'numeric' };
+    document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-US', opts);
+
+    updateTopBar();
+    renderChores();
+    updateProgress();
+    renderBadges();
+    renderChat();
+    renderActivities();
+
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+  } catch (e) {
+    console.error('Init failed:', e);
+    document.getElementById('loadingScreen').innerHTML =
+      '<div style="text-align:center;color:white;padding:20px;max-width:400px;">' +
+      '<div style="font-size:48px;margin-bottom:12px;">🔧</div>' +
+      '<h2>Setup Needed</h2>' +
+      '<p style="margin-top:10px;opacity:0.85;font-size:14px;line-height:1.5;">' +
+      'Open <b>index.html</b> and replace the <code style="background:rgba(255,255,255,0.2);padding:2px 6px;border-radius:4px;">firebaseConfig</code> values with your Firebase project settings.</p>' +
+      '</div>';
+  }
+}
+
+init();
+</script>
 </body>
 </html>
