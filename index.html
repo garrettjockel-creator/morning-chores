@@ -1236,15 +1236,23 @@ function showHelperReply(text) {
   if (prompts) prompts.style.display = convoMode ? 'none' : '';
   if (avatar) avatar.classList.add('talking');
 
-  // Speak the reply, then auto-listen if in conversation mode
-  speak(text, null, function() {
+  var callbackFired = false;
+  function onDone() {
+    if (callbackFired) return;
+    callbackFired = true;
     if (avatar) avatar.classList.remove('talking');
     chatBusy = false;
     if (convoMode) {
-      // Auto-start listening after bot finishes speaking
-      startListening();
+      // Small delay then auto-listen
+      setTimeout(function() { if (convoMode) startListening(); }, 400);
     }
-  });
+  }
+
+  // Speak the reply, then auto-listen if in conversation mode
+  speak(text, null, onDone);
+
+  // Safety timeout: if speak callback never fires, force it after 12 seconds
+  setTimeout(onDone, Math.max(4000, text.length * 80 + 2000));
 }
 
 function toggleConversation() {
@@ -1291,8 +1299,11 @@ function startListening() {
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) return;
 
+  // Stop any lingering audio before listening
+  stopSpeaking();
+
   // Stop previous recognition if any
-  if (micRecognition) { try { micRecognition.stop(); } catch(e) {} }
+  if (micRecognition) { try { micRecognition.stop(); } catch(e) {} micRecognition = null; }
 
   micRecognition = new SpeechRecognition();
   micRecognition.lang = 'en-US';
@@ -1313,7 +1324,11 @@ function startListening() {
     micListening = false;
     if (btn) btn.classList.remove('listening');
     if (label) label.textContent = 'Tap to end conversation';
-    sendChatText(transcript);
+    // Stop recognition fully before trying to speak (iOS audio session conflict)
+    try { micRecognition.stop(); } catch(ex) {}
+    micRecognition = null;
+    // Small delay to let iOS release the audio session
+    setTimeout(function() { sendChatText(transcript); }, 300);
   };
 
   micRecognition.onerror = function(e) {
