@@ -23,7 +23,13 @@
 // ============================================================
 
 const ALLOWED_ORIGIN = 'https://garrettjockel-creator.github.io';
-const MAX_MESSAGES_PER_DAY = 50;
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age': '86400',
+};
 
 const SYSTEM_PROMPT = `You are "Helper", a kind, encouraging friend talking to a young child (age 5-7) named {NAME}.
 
@@ -56,50 +62,38 @@ export default {
   async fetch(request, env) {
     // CORS preflight
     if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        headers: {
-          'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Max-Age': '86400',
-        }
-      });
+      return new Response(null, { headers: CORS_HEADERS });
     }
 
-    // Only POST
-    if (request.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
-    }
-
-    // Check origin
-    const origin = request.headers.get('Origin') || '';
-    if (!origin.includes('garrettjockel-creator.github.io') && !origin.includes('localhost')) {
-      return new Response('Forbidden', { status: 403 });
-    }
-
-    // Simple rate limiting using a KV-like approach with the global object
-    // For a family app, this is sufficient. For production, use Workers KV.
-    const today = new Date().toISOString().split('T')[0];
-    const rateLimitKey = `rate_${today}`;
-
-    // Parse request
-    let body;
+    // Wrap everything in try/catch so we ALWAYS return CORS headers
     try {
-      body = await request.json();
-    } catch (e) {
-      return jsonResponse({ error: 'Invalid JSON' }, 400, origin);
-    }
+      // Only POST
+      if (request.method !== 'POST') {
+        return jsonResponse({ error: 'Method not allowed' }, 405);
+      }
 
-    const messages = body.messages || [];
-    const context = body.context || {};
+      // Check API key is configured
+      if (!env.ANTHROPIC_API_KEY) {
+        return jsonResponse({ error: 'ANTHROPIC_API_KEY secret is not set in Worker settings' }, 500);
+      }
 
-    // Build system prompt with context
-    const systemPrompt = SYSTEM_PROMPT
-      .replace('{NAME}', context.name || 'Buddy')
-      .replace('{LEVEL}', context.level || 'Little Helper')
-      .replace('{STREAK}', context.streak || 0);
+      // Parse request
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return jsonResponse({ error: 'Invalid JSON' }, 400);
+      }
 
-    try {
+      const messages = body.messages || [];
+      const context = body.context || {};
+
+      // Build system prompt with context
+      const systemPrompt = SYSTEM_PROMPT
+        .replace('{NAME}', context.name || 'Buddy')
+        .replace('{LEVEL}', context.level || 'Little Helper')
+        .replace('{STREAK}', context.streak || 0);
+
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -108,7 +102,7 @@ export default {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-3-5-haiku-20241022',
+          model: 'claude-3-haiku-20240307',
           max_tokens: 150,
           system: systemPrompt,
           messages: messages.slice(-10).map(m => ({
@@ -121,25 +115,24 @@ export default {
       const data = await response.json();
 
       if (!response.ok) {
-        return jsonResponse({ error: 'API error', detail: data, status: response.status }, response.status, origin);
+        return jsonResponse({ error: 'API error', detail: data, status: response.status }, response.status);
       }
 
-      // Return just the reply text for simpler client parsing
       const reply = data.content?.[0]?.text || '';
-      return jsonResponse({ reply, content: data.content }, 200, origin);
+      return jsonResponse({ reply }, 200);
 
     } catch (e) {
-      return jsonResponse({ error: 'Failed to reach API', message: e.message }, 502, origin);
+      return jsonResponse({ error: 'Worker crash', message: e.message, stack: e.stack }, 500);
     }
   }
 };
 
-function jsonResponse(data, status, origin) {
+function jsonResponse(data, status) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': origin || ALLOWED_ORIGIN,
+      ...CORS_HEADERS,
     }
   });
 }
