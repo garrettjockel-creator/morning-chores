@@ -223,6 +223,7 @@
       border-radius: 16px; font-size: 15px;
       line-height: 1.4; word-wrap: break-word;
     }
+    .chat-bubble {  cursor: pointer; }
     .chat-bubble.assistant {
       background: white; color: #333;
       border-bottom-left-radius: 4px; align-self: flex-start;
@@ -274,6 +275,19 @@
     .activity-name { font-size: 12px; font-weight: 600; color: #333; margin-top: 4px; }
     .activity-card.tappable { border: 2px solid var(--gold); }
     .tap-hint { font-size: 9px; color: var(--gold); font-weight: 700; margin-top: 2px; }
+
+    /* Speaker buttons */
+    .speak-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(102,126,234,0.12); border: none;
+      font-size: 15px; cursor: pointer; flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.2s;
+    }
+    .speak-btn:active { background: rgba(102,126,234,0.3); }
+    .speak-btn.speaking { animation: pulse 0.8s ease infinite; }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.2); } }
     .pick-btn {
       display: block; margin: 0 auto 18px;
       background: white; border: none; border-radius: 20px;
@@ -389,7 +403,7 @@
           <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
           <div class="progress-text" id="progressText">0 of 0 done</div>
         </div>
-        <div class="all-done-banner" id="allDoneBanner">
+        <div class="all-done-banner" id="allDoneBanner" onclick="speak('All chores done! Great job today! You are a champion!')">
           <div class="all-done-trophy">🏆</div>
           <div class="all-done-msg">All Chores Done!</div>
           <div class="all-done-sub">Great job today! You're a champion!</div>
@@ -642,6 +656,24 @@ function getLevelInfo(xp) {
   return { level: cur.level, title: cur.title, xp, inLvl, need, progress: nxt ? inLvl / need : 1, isMax: !nxt };
 }
 
+// ===== TEXT TO SPEECH =====
+function speak(text, btn) {
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.85;
+  utter.pitch = 1.1;
+  // Try to pick a good English voice
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v => v.name.includes('Samantha')) ||
+    voices.find(v => v.lang.startsWith('en') && v.name.includes('Female')) ||
+    voices.find(v => v.lang.startsWith('en'));
+  if (preferred) utter.voice = preferred;
+  if (btn) { btn.classList.add('speaking'); utter.onend = () => btn.classList.remove('speaking'); }
+  window.speechSynthesis.speak(utter);
+}
+// Preload voices
+if (window.speechSynthesis) window.speechSynthesis.getVoices();
+
 // ===== FIREBASE =====
 async function initFirebase() {
   firebase.initializeApp(firebaseConfig);
@@ -716,7 +748,7 @@ async function toggleChore(choreId) {
       else if (profile.lastAllDoneDate !== today) profile.streak = 1;
       profile.lastAllDoneDate = today;
       if ([3,7,14,30].includes(profile.streak)) profile.xp += profile.streak * 5;
-      setTimeout(showConfetti, 200);
+      setTimeout(() => { showConfetti(); speak('All chores done! Great job today! You are a champion!'); }, 200);
     }
     checkBadges();
   } else {
@@ -781,6 +813,7 @@ function renderChores() {
       '<div class="chore-check"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div>' +
       '<div class="chore-info"><div class="chore-title-text">' + c.title + '</div>' +
       '<div class="chore-subtitle-text">' + (c.subtitle || '') + '</div></div>' +
+      '<button class="speak-btn" onclick="event.stopPropagation();speak(\'' + c.title.replace(/'/g, "\\'") + '. ' + (c.subtitle || '').replace(/'/g, "\\'") + '\', this)">🔊</button>' +
       '<div class="chore-icon-display">' + c.icon + '</div>' +
       '<div class="chore-xp">+' + (c.xp || 10) + ' XP</div>';
     list.appendChild(div);
@@ -799,11 +832,13 @@ function updateProgress() {
 
 function renderBadges() {
   document.getElementById('badgesContainer').innerHTML =
-    '<div class="badges-grid">' + BADGES.map(b =>
-      '<div class="badge-card ' + (profile.badges.includes(b.id) ? '' : 'locked') + '">' +
+    '<div class="badges-grid">' + BADGES.map(b => {
+      const earned = profile.badges.includes(b.id);
+      const spk = earned ? b.name + '. ' + b.desc : b.name + '. Not earned yet.';
+      return '<div class="badge-card ' + (earned ? '' : 'locked') + '" onclick="speak(\'' + spk.replace(/'/g, "\\'") + '\')">' +
       '<div class="badge-emoji">' + b.emoji + '</div>' +
-      '<div class="badge-name">' + b.name + '</div></div>'
-    ).join('') + '</div>';
+      '<div class="badge-name">' + b.name + '</div></div>';
+    }).join('') + '</div>';
 }
 
 function renderChat() {
@@ -818,7 +853,7 @@ function renderChat() {
   el.innerHTML =
     '<div class="chat-container">' +
     '<div class="chat-messages" id="chatMessages">' +
-    '<div class="chat-bubble assistant">Hi! I\'m Helper! What should we do today? 😊</div>' +
+    '<div class="chat-bubble assistant" onclick="speak(this.textContent)">Hi! I\'m Helper! What should we do today? 😊</div>' +
     '</div>' +
     '<div class="chat-typing" id="chatTyping">Helper is thinking...</div>' +
     '<div class="chat-input-area">' +
@@ -838,7 +873,9 @@ function renderActivities() {
     html += '<div class="activity-category"><div class="activity-category-title">' +
       cat.icon + ' ' + cat.title + '</div><div class="activity-scroll">' +
       cat.items.map(i => {
-        const tap = i.tap ? ' onclick="showActivityDetail(\'' + i.tap + '\')"' : '';
+        const tap = i.tap
+          ? ' onclick="showActivityDetail(\'' + i.tap + '\')"'
+          : ' onclick="speak(\'' + i.name.replace(/'/g, "\\'") + '\', null)"';
         const hint = i.tap ? '<div class="tap-hint">Tap me!</div>' : '';
         return '<div class="activity-card' + (i.tap ? ' tappable' : '') + '"' + tap + '><div class="activity-emoji">' + i.emoji +
         '</div><div class="activity-name">' + i.name + '</div>' + hint + '</div>';
@@ -858,6 +895,7 @@ function showActivityDetail(type) {
   document.getElementById('actDetailText').textContent = item.text;
   document.getElementById('actDetailBtn2').style.display = 'inline-block';
   document.getElementById('activityDetailModal').classList.add('visible');
+  speak(item.title + '. ' + item.text);
 }
 
 function pickRandom() {
@@ -936,12 +974,14 @@ function showLevelUp(level) {
     'Level ' + level + ' — ' + (info ? info.title : '') + '!';
   document.getElementById('levelUpModal').classList.add('visible');
   showConfetti();
+  speak('Level Up! You reached Level ' + level + ', ' + (info ? info.title : '') + '!');
 }
 
 function showBadgeUnlock(badge) {
   document.getElementById('badgeModalEmoji').textContent = badge.emoji;
   document.getElementById('badgeModalName').textContent = badge.name + ' — ' + badge.desc;
   document.getElementById('badgeModal').classList.add('visible');
+  speak('Badge unlocked! ' + badge.name + '. ' + badge.desc);
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
@@ -958,6 +998,7 @@ async function sendChat() {
   const userDiv = document.createElement('div');
   userDiv.className = 'chat-bubble user';
   userDiv.textContent = text;
+  userDiv.onclick = function() { speak(this.textContent); };
   msgs.appendChild(userDiv);
   chatHistory.push({ role: 'user', content: text });
   msgs.scrollTop = msgs.scrollHeight;
@@ -994,8 +1035,10 @@ async function sendChat() {
       const botDiv = document.createElement('div');
       botDiv.className = 'chat-bubble assistant';
       botDiv.textContent = reply;
+      botDiv.onclick = function() { speak(this.textContent); };
       msgs.appendChild(botDiv);
       chatHistory.push({ role: 'assistant', content: reply });
+      speak(reply);
     }
   } catch (e) {
     const errDiv = document.createElement('div');
