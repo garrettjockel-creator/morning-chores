@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Morning Chores</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .container {
+      background: white;
+      border-radius: 24px;
+      padding: 40px 36px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .header .sun {
+      font-size: 56px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: #1a1a2e;
+    }
+
+    .header .date {
+      font-size: 16px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    .chore-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .chore-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #f7f7fb;
+      border: 2px solid #ebebf0;
+      border-radius: 16px;
+      padding: 18px 20px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .chore-item:active {
+      transform: scale(0.97);
+    }
+
+    .chore-item.done {
+      background: #e8f9ee;
+      border-color: #34d399;
+    }
+
+    .checkbox {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 3px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.25s ease;
+      background: white;
+    }
+
+    .chore-item.done .checkbox {
+      background: #34d399;
+      border-color: #34d399;
+    }
+
+    .checkbox svg {
+      width: 20px;
+      height: 20px;
+      stroke: white;
+      stroke-width: 3;
+      fill: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .chore-item.done .checkbox svg {
+      opacity: 1;
+    }
+
+    .chore-info {
+      flex: 1;
+    }
+
+    .chore-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #1a1a2e;
+      transition: color 0.25s ease;
+    }
+
+    .chore-item.done .chore-title {
+      color: #22c55e;
+      text-decoration: line-through;
+    }
+
+    .chore-subtitle {
+      font-size: 14px;
+      color: #999;
+      margin-top: 2px;
+    }
+
+    .chore-icon {
+      font-size: 32px;
+      flex-shrink: 0;
+    }
+
+    .progress-section {
+      margin-top: 28px;
+      text-align: center;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 14px;
+      background: #ebebf0;
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #34d399, #22c55e);
+      border-radius: 7px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    .progress-text {
+      margin-top: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #555;
+    }
+
+    .all-done {
+      display: none;
+      margin-top: 24px;
+      text-align: center;
+      animation: pop 0.5s ease;
+    }
+
+    .all-done.visible {
+      display: block;
+    }
+
+    .all-done .trophy {
+      font-size: 64px;
+    }
+
+    .all-done .message {
+      font-size: 22px;
+      font-weight: 800;
+      color: #22c55e;
+      margin-top: 8px;
+    }
+
+    .all-done .sub {
+      font-size: 15px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      70% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="sun">&#9728;&#65039;</div>
+    <h1>Morning Chores</h1>
+    <div class="date" id="dateDisplay"></div>
+  </div>
+
+  <ul class="chore-list" id="choreList">
+    <li class="chore-item" data-id="feed-lexi" onclick="toggleChore(this)">
+      <div class="checkbox">
+        <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
+      </div>
+      <div class="chore-info">
+        <div class="chore-title">Feed Lexi</div>
+        <div class="chore-subtitle">Give her food & fresh water</div>
+      </div>
+      <div class="chore-icon">&#128054;</div>
+    </li>
+
+    <li class="chore-item" data-id="pushups" onclick="toggleChore(this)">
+      <div class="checkbox">
+        <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
+      </div>
+      <div class="chore-info">
+        <div class="chore-title">30 Push-Ups</div>
+        <div class="chore-subtitle">Get strong!</div>
+      </div>
+      <div class="chore-icon">&#128170;</div>
+    </li>
+
+    <li class="chore-item" data-id="dishes-load" onclick="toggleChore(this)">
+      <div class="checkbox">
+        <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
+      </div>
+      <div class="chore-info">
+        <div class="chore-title">Load the Dishwasher</div>
+        <div class="chore-subtitle">Put dirty dishes in (if needed)</div>
+      </div>
+      <div class="chore-icon">&#129523;</div>
+    </li>
+
+    <li class="chore-item" data-id="dishes-unload" onclick="toggleChore(this)">
+      <div class="checkbox">
+        <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
+      </div>
+      <div class="chore-info">
+        <div class="chore-title">Unload the Dishwasher</div>
+        <div class="chore-subtitle">Put clean dishes away (if needed)</div>
+      </div>
+      <div class="chore-icon">&#10024;</div>
+    </li>
+
+    <li class="chore-item" data-id="reading" onclick="toggleChore(this)">
+      <div class="checkbox">
+        <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
+      </div>
+      <div class="chore-info">
+        <div class="chore-title">Read About Jesus</div>
+        <div class="chore-subtitle">10 minutes of Bible reading</div>
+      </div>
+      <div class="chore-icon">&#128214;</div>
+    </li>
+  </ul>
+
+  <div class="progress-section">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-text" id="progressText">0 of 5 done</div>
+  </div>
+
+  <div class="all-done" id="allDone">
+    <div class="trophy">&#127942;</div>
+    <div class="message">All Chores Done!</div>
+    <div class="sub">Great job today! You're a champion.</div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'morningChores';
+
+  function getTodayKey() {
+    const d = new Date();
+    return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  }
+
+  function loadState() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (saved && saved.date === getTodayKey()) {
+        return saved.done;
+      }
+    } catch (e) {}
+    return [];
+  }
+
+  function saveState(doneIds) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      date: getTodayKey(),
+      done: doneIds
+    }));
+  }
+
+  function updateProgress() {
+    const items = document.querySelectorAll('.chore-item');
+    const doneCount = document.querySelectorAll('.chore-item.done').length;
+    const total = items.length;
+    const pct = Math.round((doneCount / total) * 100);
+
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressText').textContent = doneCount + ' of ' + total + ' done';
+
+    const allDone = document.getElementById('allDone');
+    if (doneCount === total) {
+      allDone.classList.add('visible');
+    } else {
+      allDone.classList.remove('visible');
+    }
+  }
+
+  function toggleChore(el) {
+    el.classList.toggle('done');
+
+    const doneIds = [];
+    document.querySelectorAll('.chore-item.done').forEach(item => {
+      doneIds.push(item.dataset.id);
+    });
+    saveState(doneIds);
+    updateProgress();
+  }
+
+  // Set the date display
+  const now = new Date();
+  const options = { weekday: 'long', month: 'long', day: 'numeric' };
+  document.getElementById('dateDisplay').textContent = now.toLocaleDateString('en-US', options);
+
+  // Restore today's state
+  const done = loadState();
+  done.forEach(id => {
+    const el = document.querySelector('[data-id="' + id + '"]');
+    if (el) el.classList.add('done');
+  });
+  updateProgress();
+</script>
+
+</body>
+</html>
