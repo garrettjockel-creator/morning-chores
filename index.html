@@ -724,31 +724,59 @@ function getLevelInfo(xp) {
 }
 
 // ===== TEXT TO SPEECH =====
-let bestVoice = null;
-function loadVoices() {
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) return;
-  // Prefer premium/enhanced natural voices on iOS/macOS
-  bestVoice =
-    voices.find(v => v.name.includes('Samantha') && v.name.includes('Enhanced')) ||
-    voices.find(v => v.name.includes('Samantha') && v.name.includes('Premium')) ||
-    voices.find(v => v.name === 'Samantha') ||
-    voices.find(v => v.lang.startsWith('en') && (v.name.includes('Enhanced') || v.name.includes('Premium'))) ||
-    voices.find(v => v.lang.startsWith('en') && v.localService) ||
-    voices.find(v => v.lang.startsWith('en'));
-}
-if (window.speechSynthesis) {
-  loadVoices();
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-}
+let currentAudio = null;
 
 function speak(text, btn) {
+  // Stop any current speech
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   window.speechSynthesis.cancel();
+
+  if (!text) return;
+
+  // Try cloud TTS if worker URL is configured
+  if (config.workerUrl) {
+    let ttsUrl = config.workerUrl;
+    if (!ttsUrl.startsWith('http')) ttsUrl = 'https://' + ttsUrl;
+    // Ensure /tts path
+    ttsUrl = ttsUrl.replace(/\/$/, '') + '/tts';
+
+    if (btn) btn.classList.add('speaking');
+
+    fetch(ttsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.slice(0, 500) }),
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('TTS failed');
+      return res.blob();
+    })
+    .then(function(blob) {
+      const url = URL.createObjectURL(blob);
+      currentAudio = new Audio(url);
+      currentAudio.onended = function() {
+        URL.revokeObjectURL(url);
+        currentAudio = null;
+        if (btn) btn.classList.remove('speaking');
+      };
+      currentAudio.play();
+    })
+    .catch(function() {
+      // Fall back to browser voice
+      speakBrowser(text, btn);
+    });
+    return;
+  }
+
+  speakBrowser(text, btn);
+}
+
+function speakBrowser(text, btn) {
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 0.9;
   utter.pitch = 1.05;
-  if (bestVoice) utter.voice = bestVoice;
-  if (btn) { btn.classList.add('speaking'); utter.onend = () => btn.classList.remove('speaking'); }
+  utter.lang = 'en-US';
+  if (btn) { btn.classList.add('speaking'); utter.onend = function() { btn.classList.remove('speaking'); }; }
   window.speechSynthesis.speak(utter);
 }
 

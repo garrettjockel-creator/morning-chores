@@ -1,25 +1,14 @@
 // ============================================================
-// Cloudflare Worker — Claude API Proxy for Morning Chores App
+// Cloudflare Worker — API Proxy for Morning Chores App
 // ============================================================
 // SETUP:
 // 1. Go to dash.cloudflare.com → Workers & Pages → Create Worker
 // 2. Paste this entire file into the editor
-// 3. Go to Settings → Variables → add: ANTHROPIC_API_KEY = your key
+// 3. Go to Settings → Variables → add secrets:
+//    ANTHROPIC_API_KEY = your Anthropic key
+//    OPENAI_API_KEY = your OpenAI key
 // 4. Deploy the worker
 // 5. Copy the worker URL and paste it into Parent Dashboard → Settings → Worker URL
-//
-// FIRESTORE RULES (paste in Firebase Console → Firestore → Rules):
-// ----------------------------------------------------------------
-// rules_version = '2';
-// service cloud.firestore {
-//   match /databases/{database}/documents {
-//     match /{document=**} {
-//       allow read, write: if true;
-//     }
-//   }
-// }
-// NOTE: These are permissive rules for a single-family app.
-// For production, restrict writes to authenticated users.
 // ============================================================
 
 const ALLOWED_ORIGIN = 'https://garrettjockel-creator.github.io';
@@ -47,6 +36,9 @@ What you do:
 - Ask simple follow-up questions to keep conversation going
 
 What you NEVER do:
+- NEVER use asterisks, stage directions, or describe your tone (e.g. no "*in a warm tone*" or "*smiling*")
+- NEVER use markdown formatting
+- Just speak naturally and directly as plain text
 - Discuss anything inappropriate for a young child
 - Give medical, legal, or safety-critical advice
 - Mention that you are an AI or language model
@@ -65,30 +57,68 @@ export default {
       return new Response(null, { headers: CORS_HEADERS });
     }
 
-    // Wrap everything in try/catch so we ALWAYS return CORS headers
     try {
-      // Only POST
       if (request.method !== 'POST') {
         return jsonResponse({ error: 'Method not allowed' }, 405);
       }
 
-      // Check API key is configured
+      const url = new URL(request.url);
+
+      // ===== TTS ENDPOINT =====
+      if (url.pathname === '/tts') {
+        if (!env.OPENAI_API_KEY) {
+          return jsonResponse({ error: 'OPENAI_API_KEY not set' }, 500);
+        }
+
+        let body;
+        try { body = await request.json(); } catch (e) {
+          return jsonResponse({ error: 'Invalid JSON' }, 400);
+        }
+
+        const text = (body.text || '').slice(0, 500);
+        if (!text) return jsonResponse({ error: 'No text provided' }, 400);
+
+        const ttsRes = await fetch('https://api.openai.com/v1/audio/speech', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + env.OPENAI_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'tts-1',
+            input: text,
+            voice: 'shimmer',
+            response_format: 'mp3',
+          }),
+        });
+
+        if (!ttsRes.ok) {
+          const err = await ttsRes.text();
+          return jsonResponse({ error: 'TTS error', detail: err }, ttsRes.status);
+        }
+
+        return new Response(ttsRes.body, {
+          status: 200,
+          headers: {
+            'Content-Type': 'audio/mpeg',
+            ...CORS_HEADERS,
+          },
+        });
+      }
+
+      // ===== CHAT ENDPOINT (default) =====
       if (!env.ANTHROPIC_API_KEY) {
         return jsonResponse({ error: 'ANTHROPIC_API_KEY secret is not set in Worker settings' }, 500);
       }
 
-      // Parse request
       let body;
-      try {
-        body = await request.json();
-      } catch (e) {
+      try { body = await request.json(); } catch (e) {
         return jsonResponse({ error: 'Invalid JSON' }, 400);
       }
 
       const messages = body.messages || [];
       const context = body.context || {};
 
-      // Build system prompt with context
       const systemPrompt = SYSTEM_PROMPT
         .replace('{NAME}', context.name || 'Buddy')
         .replace('{LEVEL}', context.level || 'Little Helper')
