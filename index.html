@@ -906,11 +906,21 @@ async function sendChat() {
         context: { name: config.childName, level: getLevelInfo(profile.xp).title, streak: profile.streak }
       })
     });
-    const data = await res.json();
+    const rawText = await res.text();
+    let data;
+    try { data = JSON.parse(rawText); } catch (pe) {
+      const errDiv = document.createElement('div');
+      errDiv.className = 'chat-bubble assistant';
+      errDiv.textContent = "Worker error (status " + res.status + "): " + rawText.substring(0, 200);
+      msgs.appendChild(errDiv);
+      document.getElementById('chatTyping').style.display = 'none';
+      msgs.scrollTop = msgs.scrollHeight;
+      return;
+    }
     if (data.error) {
       const errDiv = document.createElement('div');
       errDiv.className = 'chat-bubble assistant';
-      errDiv.textContent = "Oops! Something went wrong: " + (data.detail?.error?.message || data.error);
+      errDiv.textContent = "API error: " + (data.detail?.error?.message || data.message || data.error);
       msgs.appendChild(errDiv);
     } else {
       const reply = data.reply || data.content?.[0]?.text || "Hmm, I'm not sure what to say!";
@@ -923,7 +933,7 @@ async function sendChat() {
   } catch (e) {
     const errDiv = document.createElement('div');
     errDiv.className = 'chat-bubble assistant';
-    errDiv.textContent = "Oops! Can't reach Helper: " + e.message;
+    errDiv.textContent = "Network error: " + e.message;
     msgs.appendChild(errDiv);
   }
 
