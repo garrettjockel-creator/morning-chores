@@ -71,14 +71,7 @@
     .top-streak { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
     .streak-fire { font-size: 20px; }
     .streak-count { font-size: 16px; font-weight: 800; }
-    .settings-link {
-      color: white;
-      text-decoration: none;
-      font-size: 20px;
-      opacity: 0.6;
-      flex-shrink: 0;
-      padding: 4px;
-    }
+    /* .settings-link removed — replaced by .parent-pill */
 
     /* ===== TAB CONTENT ===== */
     #tabContent {
@@ -495,6 +488,87 @@
       background: rgba(255,255,255,0.3);
     }
     .onboard-dot.active { background: white; }
+
+    /* Chore Review Onboarding */
+    .chore-review-wrap {
+      width: 100%; max-width: 360px; max-height: 50vh;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      margin-top: 16px;
+    }
+    .chore-review-card {
+      background: rgba(255,255,255,0.95); border-radius: 14px;
+      padding: 12px 14px; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 10px;
+      color: #333;
+    }
+    .chore-review-emoji { font-size: 28px; flex-shrink: 0; }
+    .chore-review-title { font-size: 15px; font-weight: 700; flex: 1; }
+    .chore-review-vote {
+      display: flex; gap: 4px; flex-shrink: 0;
+    }
+    .vote-btn {
+      background: none; border: 2px solid transparent;
+      border-radius: 8px; font-size: 22px; padding: 2px 6px;
+      cursor: pointer; opacity: 0.4; transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .vote-btn.active { opacity: 1; border-color: rgba(255,255,255,0.5); }
+    .vote-btn:active { transform: scale(0.9); }
+
+    /* Parent pill button */
+    .parent-pill {
+      background: white; color: var(--primary);
+      text-decoration: none; font-size: 12px; font-weight: 700;
+      padding: 4px 12px; border-radius: 20px;
+      flex-shrink: 0;
+    }
+
+    /* ===== THEME PICKER ===== */
+    .theme-btn {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(255,255,255,0.2); border: none;
+      font-size: 16px; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .theme-btn:active { transform: scale(0.9); }
+    .theme-section-label {
+      font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85);
+      margin: 10px 0 6px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .theme-pick-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 8px; width: 100%;
+    }
+    .theme-pick-card {
+      background: rgba(255,255,255,0.2); border-radius: 12px;
+      padding: 10px 6px; text-align: center; cursor: pointer;
+      border: 2px solid transparent; transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .theme-pick-card:active { transform: scale(0.95); }
+    .theme-pick-card.selected {
+      border-color: white; background: rgba(255,255,255,0.35);
+    }
+    .theme-pick-card-emoji { font-size: 22px; }
+    .theme-pick-card-name { font-size: 11px; font-weight: 600; color: white; margin-top: 2px; line-height: 1.2; }
+    .theme-picker-wrap {
+      width: 100%; max-width: 360px; max-height: 50vh;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      margin-top: 16px;
+    }
+    .theme-modal-body {
+      max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      text-align: left; padding: 0 4px;
+    }
+    .theme-modal-body .theme-section-label { color: #666; }
+    .theme-modal-body .theme-pick-card {
+      background: rgba(102,126,234,0.1);
+    }
+    .theme-modal-body .theme-pick-card.selected {
+      border-color: var(--primary); background: rgba(102,126,234,0.2);
+    }
+    .theme-modal-body .theme-pick-card-name { color: #333; }
   </style>
 </head>
 <body>
@@ -507,6 +581,8 @@
     <div class="onboard-emoji" id="onboardEmoji"></div>
     <div class="onboard-title" id="onboardTitle"></div>
     <div class="onboard-text" id="onboardText"></div>
+    <div class="chore-review-wrap" id="choreReviewWrap" style="display:none;"></div>
+    <div class="theme-picker-wrap" id="themePickerWrap" style="display:none;"></div>
     <button class="onboard-btn" id="onboardBtn" onclick="nextOnboardSlide()">Next</button>
     <div class="onboard-dots" id="onboardDots"></div>
   </div>
@@ -531,7 +607,8 @@
         <span class="streak-fire">🔥</span>
         <span class="streak-count" id="streakCount">0</span>
       </div>
-      <a id="parentLink" href="parent.html" class="settings-link">⚙️</a>
+      <button class="theme-btn" onclick="openThemePicker()">🎨</button>
+      <a id="parentLink" href="parent.html" class="parent-pill">Parent</a>
     </div>
 
     <!-- Tab Content -->
@@ -578,7 +655,7 @@
         <span class="tab-icon">🎁</span>Rewards
       </button>
       <button class="tab-btn" data-tab="chat" onclick="switchTab('chat')">
-        <span class="tab-icon">💬</span>Chat
+        <span class="tab-icon">🎤</span>Chat
       </button>
       <button class="tab-btn" data-tab="activities" onclick="switchTab('activities')">
         <span class="tab-icon">💡</span>Ideas
@@ -617,6 +694,16 @@
         <button class="modal-btn" onclick="closeModal('activityDetailModal')">Got it!</button>
         <button class="modal-btn" id="actDetailBtn2" style="background:#22c55e;" onclick="showActivityDetail(document.getElementById('actDetailEmoji').textContent==='📖'?'bible':document.getElementById('actDetailEmoji').textContent==='❤️'?'jesus':'draw')">Another!</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Theme Picker Modal -->
+  <div class="modal-overlay" id="themeModal">
+    <div class="modal-content" style="max-width:340px;width:90%;">
+      <div class="modal-emoji">🎨</div>
+      <div class="modal-title" style="font-size:18px;">Pick Your Style!</div>
+      <div class="theme-modal-body" id="themeModalBody"></div>
+      <button class="modal-btn" onclick="closeModal('themeModal')">Done</button>
     </div>
   </div>
 
@@ -767,6 +854,33 @@ const DRAW_PROMPTS = [
 ];
 
 const STICKER_EMOJIS = ['⭐','🌟','✨','💫','🎯','👍','🙌','💪','🎉','🌈'];
+
+const THEMES = [
+  // Sports Teams
+  { id: 'chiefs',     name: 'Chiefs',      emoji: '🏈', primary: '#E31837', primaryDark: '#FFB612', category: 'team' },
+  { id: 'cowboys',    name: 'Cowboys',     emoji: '⭐', primary: '#003594', primaryDark: '#041E42', category: 'team' },
+  { id: 'packers',    name: 'Packers',     emoji: '🧀', primary: '#203731', primaryDark: '#FFB612', category: 'team' },
+  { id: 'lakers',     name: 'Lakers',      emoji: '🏀', primary: '#552583', primaryDark: '#FDB927', category: 'team' },
+  { id: 'warriors',   name: 'Warriors',    emoji: '🏀', primary: '#1D428A', primaryDark: '#FFC72C', category: 'team' },
+  { id: 'yankees',    name: 'Yankees',     emoji: '⚾', primary: '#003087', primaryDark: '#0C2340', category: 'team' },
+  { id: 'dodgers',    name: 'Dodgers',     emoji: '⚾', primary: '#005A9C', primaryDark: '#002F6C', category: 'team' },
+  { id: 'manutd',     name: 'Man United',  emoji: '⚽', primary: '#DA291C', primaryDark: '#000000', category: 'team' },
+  { id: 'barcelona',  name: 'Barcelona',   emoji: '⚽', primary: '#A50044', primaryDark: '#004D98', category: 'team' },
+  { id: 'avalanche',  name: 'Avalanche',   emoji: '🏒', primary: '#6F263D', primaryDark: '#236192', category: 'team' },
+  { id: 'lightning',  name: 'Lightning',   emoji: '🏒', primary: '#002868', primaryDark: '#000000', category: 'team' },
+  { id: 'realmadrid', name: 'Real Madrid', emoji: '⚽', primary: '#FEBE10', primaryDark: '#00529F', category: 'team' },
+  // Color Palettes
+  { id: 'purple-galaxy', name: 'Purple Galaxy', emoji: '🔮', primary: '#667eea', primaryDark: '#764ba2', category: 'color' },
+  { id: 'ocean-blue',   name: 'Ocean Blue',    emoji: '🌊', primary: '#0ea5e9', primaryDark: '#0369a1', category: 'color' },
+  { id: 'fire-red',     name: 'Fire Red',      emoji: '🔥', primary: '#ef4444', primaryDark: '#991b1b', category: 'color' },
+  { id: 'jungle-green', name: 'Jungle Green',  emoji: '🌴', primary: '#22c55e', primaryDark: '#166534', category: 'color' },
+  { id: 'sunset-orange',name: 'Sunset Orange', emoji: '🌅', primary: '#f97316', primaryDark: '#c2410c', category: 'color' },
+  { id: 'hot-pink',     name: 'Hot Pink',      emoji: '💖', primary: '#ec4899', primaryDark: '#9d174d', category: 'color' },
+  { id: 'midnight',     name: 'Midnight',      emoji: '🌙', primary: '#6366f1', primaryDark: '#1e1b4b', category: 'color' },
+  { id: 'golden',       name: 'Golden',        emoji: '✨', primary: '#eab308', primaryDark: '#854d0e', category: 'color' },
+];
+
+let selectedThemeId = 'purple-galaxy';
 
 const DEFAULT_CHORES = [
   { title: 'Make Your Bed', subtitle: 'Nice and tidy!', icon: '🛏️', xp: 10, order: 1, active: true },
@@ -945,14 +1059,19 @@ const ONBOARD_SLIDES = [
   { emoji: '⭐', title: 'Complete your chores!', text: 'Every morning, complete your chores to earn points!' },
   { emoji: '🎁', title: 'Earn real rewards!', text: 'Earn enough points and redeem real rewards!' },
   { emoji: '🤖', title: 'Meet Helper!', text: 'Talk to Helper, your virtual librarian, and get fun ideas!' },
+  { emoji: '🎨', title: 'Pick your style!', text: 'Choose your favorite team or color', themePicker: true },
+  { emoji: '📋', title: 'Here are your chores!', text: 'Let us know what you think!', choreReview: true },
   { emoji: '🚀', title: "Ready? Let's go!", text: 'Your adventure starts now!' },
 ];
 let onboardSlide = 0;
+let choreVotes = {}; // choreId -> true (like) / false (dislike)
 
 function showOnboarding() {
   const onboarding = document.getElementById('onboarding');
   onboarding.classList.add('visible');
   onboardSlide = 0;
+  // Init all chore votes to liked
+  chores.forEach(c => { choreVotes[c.id] = true; });
   renderOnboardSlide();
 }
 
@@ -966,9 +1085,39 @@ function renderOnboardSlide() {
   const isLast = onboardSlide === ONBOARD_SLIDES.length - 1;
   document.getElementById('onboardBtn').textContent = isLast ? "Let's Go!" : 'Next';
 
+  // Show/hide theme picker
+  const themeWrap = document.getElementById('themePickerWrap');
+  if (slide.themePicker) {
+    themeWrap.innerHTML = buildThemeGridHtml('themePickerWrap');
+    themeWrap.style.display = 'block';
+  } else {
+    themeWrap.style.display = 'none';
+  }
+
+  // Show/hide chore review
+  const reviewWrap = document.getElementById('choreReviewWrap');
+  if (slide.choreReview) {
+    let html = '';
+    chores.forEach(c => {
+      const liked = choreVotes[c.id] !== false;
+      html += '<div class="chore-review-card">' +
+        '<div class="chore-review-emoji">' + c.icon + '</div>' +
+        '<div class="chore-review-title">' + c.title + '</div>' +
+        '<div class="chore-review-vote">' +
+        '<button class="vote-btn' + (liked ? ' active' : '') + '" onclick="voteChore(\'' + c.id + '\', true)">👍</button>' +
+        '<button class="vote-btn' + (!liked ? ' active' : '') + '" onclick="voteChore(\'' + c.id + '\', false)">👎</button>' +
+        '</div></div>';
+    });
+    reviewWrap.innerHTML = html;
+    reviewWrap.style.display = 'block';
+  } else {
+    reviewWrap.style.display = 'none';
+  }
+
   // Dots
+  const totalSlides = ONBOARD_SLIDES.length;
   let dotsHtml = '';
-  for (let i = 0; i < ONBOARD_SLIDES.length; i++) {
+  for (let i = 0; i < totalSlides; i++) {
     dotsHtml += '<div class="onboard-dot' + (i === onboardSlide ? ' active' : '') + '"></div>';
   }
   document.getElementById('onboardDots').innerHTML = dotsHtml;
@@ -978,8 +1127,32 @@ function renderOnboardSlide() {
   speak(spokenText);
 }
 
+function voteChore(choreId, liked) {
+  choreVotes[choreId] = liked;
+  renderOnboardSlide();
+}
+
+async function saveChoreVotes() {
+  const batch = db.batch();
+  chores.forEach(c => {
+    if (choreVotes[c.id] === false) {
+      batch.update(familyRef.collection('chores').doc(c.id), { kidLikes: false });
+    }
+  });
+  await batch.commit();
+}
+
 async function nextOnboardSlide() {
   stopSpeaking();
+  // If leaving the theme picker slide, save theme
+  if (ONBOARD_SLIDES[onboardSlide] && ONBOARD_SLIDES[onboardSlide].themePicker) {
+    familyData.kidTheme = selectedThemeId;
+    await familyRef.update({ kidTheme: selectedThemeId });
+  }
+  // If leaving the chore review slide, save votes
+  if (ONBOARD_SLIDES[onboardSlide] && ONBOARD_SLIDES[onboardSlide].choreReview) {
+    await saveChoreVotes();
+  }
   onboardSlide++;
   if (onboardSlide >= ONBOARD_SLIDES.length) {
     // Done with onboarding
@@ -1190,7 +1363,6 @@ function renderChat() {
     '<button class="mic-btn" id="micBtn" onclick="toggleConversation()">🎤</button>' +
     '<div class="mic-label" id="micLabel">Tap to start a conversation</div>' +
     '</div></div>';
-  speak('Hi! I\'m Helper! Tap the big button to talk to me!');
 }
 
 let activeFilter = 'all';
@@ -1257,6 +1429,9 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(tab + 'Tab').classList.add('active');
   document.querySelector('[data-tab="' + tab + '"]').classList.add('active');
+  if (tab === 'chat') {
+    speak('Hi! I\'m Helper! Tap the big button to talk to me!');
+  }
 }
 
 // ===== ANIMATIONS =====
@@ -1508,6 +1683,67 @@ function interruptHelper() {
   }
 }
 
+// ===== THEMING =====
+function applyTheme(themeId) {
+  const theme = THEMES.find(t => t.id === themeId);
+  if (!theme) return;
+  selectedThemeId = themeId;
+  document.documentElement.style.setProperty('--primary', theme.primary);
+  document.documentElement.style.setProperty('--primary-dark', theme.primaryDark);
+  document.body.style.background = 'linear-gradient(135deg, ' + theme.primary + ' 0%, ' + theme.primaryDark + ' 100%)';
+  var onboarding = document.getElementById('onboarding');
+  if (onboarding) onboarding.style.background = 'linear-gradient(135deg, ' + theme.primary + ' 0%, ' + theme.primaryDark + ' 100%)';
+  // Update speak-btn rgba from primary hex
+  var r = parseInt(theme.primary.slice(1,3), 16);
+  var g = parseInt(theme.primary.slice(3,5), 16);
+  var b = parseInt(theme.primary.slice(5,7), 16);
+  var style = document.getElementById('dynamicSpeakStyle');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'dynamicSpeakStyle';
+    document.head.appendChild(style);
+  }
+  style.textContent = '.speak-btn { background: rgba(' + r + ',' + g + ',' + b + ',0.15); } .speak-btn:active { background: rgba(' + r + ',' + g + ',' + b + ',0.35); }';
+}
+
+function buildThemeGridHtml(containerId) {
+  var teams = THEMES.filter(t => t.category === 'team');
+  var colors = THEMES.filter(t => t.category === 'color');
+  var html = '<div class="theme-section-label">Teams</div><div class="theme-pick-grid">';
+  teams.forEach(t => {
+    html += '<div class="theme-pick-card' + (t.id === selectedThemeId ? ' selected' : '') +
+      '" onclick="selectTheme(\'' + t.id + '\', \'' + containerId + '\')">' +
+      '<div class="theme-pick-card-emoji">' + t.emoji + '</div>' +
+      '<div class="theme-pick-card-name">' + t.name + '</div></div>';
+  });
+  html += '</div><div class="theme-section-label">Colors</div><div class="theme-pick-grid">';
+  colors.forEach(t => {
+    html += '<div class="theme-pick-card' + (t.id === selectedThemeId ? ' selected' : '') +
+      '" onclick="selectTheme(\'' + t.id + '\', \'' + containerId + '\')">' +
+      '<div class="theme-pick-card-emoji">' + t.emoji + '</div>' +
+      '<div class="theme-pick-card-name">' + t.name + '</div></div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function selectTheme(themeId, containerId) {
+  applyTheme(themeId);
+  var container = document.getElementById(containerId);
+  if (container) container.innerHTML = buildThemeGridHtml(containerId);
+  // Save to Firestore immediately when picking from modal
+  if (containerId === 'themeModalBody') {
+    familyData.kidTheme = themeId;
+    familyRef.update({ kidTheme: themeId });
+  }
+}
+
+function openThemePicker() {
+  var body = document.getElementById('themeModalBody');
+  body.innerHTML = buildThemeGridHtml('themeModalBody');
+  document.getElementById('themeModal').classList.add('visible');
+}
+
 // ===== SHOW APP =====
 function showApp() {
   const opts = { weekday: 'long', month: 'long', day: 'numeric' };
@@ -1533,6 +1769,11 @@ async function init() {
     await Promise.all([loadProfile(), loadChores()]);
     await loadToday();
     checkStreakOnLoad();
+
+    // Apply saved theme (or default)
+    if (familyData.kidTheme) {
+      applyTheme(familyData.kidTheme);
+    }
 
     document.getElementById('loadingScreen').style.display = 'none';
 
