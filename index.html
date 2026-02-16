@@ -915,7 +915,19 @@ async function toggleChore(choreId) {
     }
     checkBadges();
   } else {
+    // Uncomplete — deduct XP if it was awarded
     todayDoc.done.splice(idx, 1);
+    const xpIdx = todayDoc.xpAwarded.indexOf(choreId);
+    if (xpIdx !== -1) {
+      todayDoc.xpAwarded.splice(xpIdx, 1);
+      profile.xp = Math.max(0, profile.xp - (chore.xp || 10));
+      profile.totalChoresCompleted = Math.max(0, profile.totalChoresCompleted - 1);
+    }
+    // Reverse all-done bonus if it was awarded
+    if (todayDoc.allDoneBonus) {
+      todayDoc.allDoneBonus = false;
+      profile.xp = Math.max(0, profile.xp - 25);
+    }
   }
 
   await Promise.all([saveProfile(), saveToday()]);
