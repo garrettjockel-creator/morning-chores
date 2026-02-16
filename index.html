@@ -253,28 +253,36 @@
     }
 
     /* ===== ACTIVITIES TAB ===== */
-    .activity-category { margin-bottom: 18px; }
-    .activity-category-title {
-      color: white; font-size: 15px; font-weight: 700;
-      margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+    .filter-bar {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 14px;
     }
-    .activity-scroll {
-      display: flex; gap: 10px; overflow-x: auto;
-      padding-bottom: 6px; -webkit-overflow-scrolling: touch;
+    .filter-btn {
+      background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 20px; padding: 6px 12px;
+      font-size: 12px; font-weight: 700; color: white;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: all 0.2s;
     }
-    .activity-scroll::-webkit-scrollbar { display: none; }
+    .filter-btn.active { background: white; color: var(--primary); border-color: white; }
+    .filter-btn:active { transform: scale(0.95); }
+    .activity-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
     .activity-card {
       background: white; border-radius: 14px;
-      padding: 12px 14px; min-width: 120px;
-      flex-shrink: 0; text-align: center;
+      padding: 12px 8px; text-align: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      cursor: pointer; transition: transform 0.2s;
+      cursor: pointer; transition: all 0.2s;
     }
     .activity-card:active { transform: scale(0.95); }
-    .activity-emoji { font-size: 30px; }
-    .activity-name { font-size: 12px; font-weight: 600; color: #333; margin-top: 4px; }
+    .activity-card.hidden { display: none; }
+    .activity-emoji { font-size: 28px; }
+    .activity-name { font-size: 11px; font-weight: 600; color: #333; margin-top: 3px; line-height: 1.2; }
     .activity-card.tappable { border: 2px solid var(--gold); }
     .tap-hint { font-size: 9px; color: var(--gold); font-weight: 700; margin-top: 2px; }
+    .no-results { text-align: center; color: rgba(255,255,255,0.7); padding: 30px; font-size: 14px; }
 
     /* Speaker buttons */
     .speak-btn {
@@ -524,62 +532,66 @@ const BADGES = [
   { id: 'bible-10',    emoji: '📖', name: 'Bible Reader',     desc: 'Read the Bible 10 times' },
 ];
 
-const ACTIVITIES = {
-  outdoor: {
-    title: 'Outdoor Adventures', icon: '🌳',
-    items: [
-      { emoji: '🚲', name: 'Ride your bike' },
-      { emoji: '⚾', name: 'Play catch' },
-      { emoji: '🥾', name: 'Nature walk' },
-      { emoji: '🤸', name: 'Trampoline time' },
-      { emoji: '🏗️', name: 'Build a fort' },
-      { emoji: '🏃', name: 'Race around the yard' },
-    ]
-  },
-  creative: {
-    title: 'Creative Time', icon: '🎨',
-    items: [
-      { emoji: '✏️', name: 'Draw a picture' },
-      { emoji: '🧱', name: 'Build with LEGO' },
-      { emoji: '🎵', name: 'Make up a song' },
-      { emoji: '🎲', name: 'Make a board game' },
-      { emoji: '🏎️', name: 'Build a race track' },
-    ]
-  },
-  learning: {
-    title: 'Learning Fun', icon: '📚',
-    items: [
-      { emoji: '📖', name: 'Read a book' },
-      { emoji: '✍️', name: 'Practice writing' },
-      { emoji: '🔢', name: 'Practice math' },
-      { emoji: '🧩', name: 'Do a puzzle' },
-      { emoji: '🔬', name: 'Science experiment' },
-      { emoji: '🗺️', name: 'Learn about a country' },
-    ]
-  },
-  helping: {
-    title: 'Helping Others', icon: '🤝',
-    items: [
-      { emoji: '🍳', name: 'Help make a meal' },
-      { emoji: '🌱', name: 'Water the plants' },
-      { emoji: '🧹', name: 'Clean up a room' },
-      { emoji: '👕', name: 'Fold laundry' },
-      { emoji: '💌', name: 'Make a card for someone' },
-      { emoji: '🐕', name: 'Play with Lexi' },
-    ]
-  },
-  faith: {
-    title: 'Faith & Prayer', icon: '✝️',
-    items: [
-      { emoji: '🙏', name: 'Pray for someone' },
-      { emoji: '🎶', name: 'Worship song' },
-      { emoji: '📖', name: 'Bible story', tap: 'bible' },
-      { emoji: '❤️', name: 'Learn about Jesus', tap: 'jesus' },
-      { emoji: '🎨', name: 'Draw for God', tap: 'draw' },
-      { emoji: '😊', name: '3 thankful things' },
-    ]
-  }
-};
+const FILTERS = [
+  { id: 'all',      emoji: '✨', label: 'All' },
+  { id: 'inside',   emoji: '🏠', label: 'Inside' },
+  { id: 'outside',  emoji: '🌳', label: 'Outside' },
+  { id: 'solo',     emoji: '👤', label: 'By Myself' },
+  { id: 'siblings', emoji: '👫', label: 'With Siblings' },
+  { id: 'parent',   emoji: '👨‍👦', label: 'With a Parent' },
+  { id: 'drive',    emoji: '🚗', label: 'Drive To' },
+];
+
+const ACTIVITIES = [
+  // Outside
+  { emoji: '🚲', name: 'Ride your bike',          tags: ['outside','solo','siblings'] },
+  { emoji: '⚾', name: 'Play catch',              tags: ['outside','siblings','parent'] },
+  { emoji: '🥾', name: 'Nature walk',             tags: ['outside','parent','siblings'] },
+  { emoji: '🤸', name: 'Trampoline time',         tags: ['outside','solo','siblings'] },
+  { emoji: '🏗️', name: 'Build a fort',            tags: ['outside','solo','siblings'] },
+  { emoji: '🏃', name: 'Race around the yard',    tags: ['outside','siblings'] },
+  { emoji: '🏊', name: 'Go swimming',             tags: ['outside','drive','parent','siblings'] },
+  { emoji: '🛝', name: 'Go to the playground',    tags: ['outside','drive','parent','siblings'] },
+  { emoji: '⛺', name: 'Backyard camping',        tags: ['outside','parent','siblings'] },
+  { emoji: '🪁', name: 'Fly a kite',              tags: ['outside','parent','solo'] },
+  // Inside
+  { emoji: '✏️', name: 'Draw a picture',          tags: ['inside','solo'] },
+  { emoji: '🧱', name: 'Build with LEGO',         tags: ['inside','solo','siblings'] },
+  { emoji: '🎵', name: 'Make up a song',          tags: ['inside','solo','siblings'] },
+  { emoji: '🎲', name: 'Make a board game',       tags: ['inside','solo','siblings'] },
+  { emoji: '🏎️', name: 'Build a race track',      tags: ['inside','solo','siblings'] },
+  { emoji: '🧩', name: 'Do a puzzle',             tags: ['inside','solo','siblings'] },
+  { emoji: '🎮', name: 'Play a board game',       tags: ['inside','siblings','parent'] },
+  { emoji: '🍪', name: 'Bake cookies',            tags: ['inside','parent'] },
+  { emoji: '🧪', name: 'Science experiment',      tags: ['inside','parent'] },
+  // Learning
+  { emoji: '📖', name: 'Read a book',             tags: ['inside','solo','parent'] },
+  { emoji: '✍️', name: 'Practice writing',        tags: ['inside','solo'] },
+  { emoji: '🔢', name: 'Practice math',           tags: ['inside','solo'] },
+  { emoji: '🗺️', name: 'Learn about a country',   tags: ['inside','solo','parent'] },
+  // Helping
+  { emoji: '🍳', name: 'Help make a meal',        tags: ['inside','parent'] },
+  { emoji: '🌱', name: 'Water the plants',        tags: ['inside','outside','solo'] },
+  { emoji: '🧹', name: 'Clean up a room',         tags: ['inside','solo'] },
+  { emoji: '👕', name: 'Fold laundry',            tags: ['inside','solo','parent'] },
+  { emoji: '💌', name: 'Make a card for someone', tags: ['inside','solo'] },
+  { emoji: '🐕', name: 'Play with Lexi',          tags: ['inside','outside','solo'] },
+  // Drive-to
+  { emoji: '📚', name: 'Go to the library',       tags: ['drive','inside','parent'] },
+  { emoji: '🦁', name: 'Go to the zoo',           tags: ['drive','outside','parent','siblings'] },
+  { emoji: '🎳', name: 'Go bowling',              tags: ['drive','inside','parent','siblings'] },
+  { emoji: '🏛️', name: 'Visit a museum',          tags: ['drive','inside','parent','siblings'] },
+  { emoji: '🍦', name: 'Get ice cream',           tags: ['drive','parent','siblings'] },
+  { emoji: '🌳', name: 'Go to a park',            tags: ['drive','outside','parent','siblings'] },
+  { emoji: '🛒', name: 'Help with grocery shopping', tags: ['drive','parent'] },
+  // Faith
+  { emoji: '🙏', name: 'Pray for someone',        tags: ['inside','solo','siblings'] },
+  { emoji: '🎶', name: 'Worship song',            tags: ['inside','solo','siblings'] },
+  { emoji: '📖', name: 'Bible story',             tags: ['inside','solo','parent'], tap: 'bible' },
+  { emoji: '❤️', name: 'Learn about Jesus',       tags: ['inside','solo','parent'], tap: 'jesus' },
+  { emoji: '🎨', name: 'Draw for God',            tags: ['inside','solo'], tap: 'draw' },
+  { emoji: '😊', name: '3 thankful things',       tags: ['inside','solo','siblings'] },
+];
 
 const BIBLE_STORIES = [
   { title: 'David and Goliath', text: 'A young boy named David trusted God and defeated a giant named Goliath with just a sling and a stone. God can help us be brave even when things seem scary! (1 Samuel 17)' },
@@ -865,23 +877,35 @@ function renderChat() {
   });
 }
 
+let activeFilter = 'all';
+
 function renderActivities() {
-  let html = '<button class="pick-btn" onclick="pickRandom()">🎲 Pick For Me!</button>' +
+  let html = '<div class="filter-bar">' +
+    FILTERS.map(f =>
+      '<button class="filter-btn' + (f.id === activeFilter ? ' active' : '') + '" onclick="setFilter(\'' + f.id + '\')">' +
+      f.emoji + ' ' + f.label + '</button>'
+    ).join('') + '</div>';
+  html += '<button class="pick-btn" onclick="pickRandom()">🎲 Pick For Me!</button>' +
     '<div class="pick-result" id="pickResult"><div class="pick-result-emoji" id="pickEmoji"></div>' +
     '<div class="pick-result-text" id="pickText"></div></div>';
-  for (const cat of Object.values(ACTIVITIES)) {
-    html += '<div class="activity-category"><div class="activity-category-title">' +
-      cat.icon + ' ' + cat.title + '</div><div class="activity-scroll">' +
-      cat.items.map(i => {
-        const tap = i.tap
-          ? ' onclick="showActivityDetail(\'' + i.tap + '\')"'
-          : ' onclick="speak(\'' + i.name.replace(/'/g, "\\'") + '\', null)"';
-        const hint = i.tap ? '<div class="tap-hint">Tap me!</div>' : '';
-        return '<div class="activity-card' + (i.tap ? ' tappable' : '') + '"' + tap + '><div class="activity-emoji">' + i.emoji +
-        '</div><div class="activity-name">' + i.name + '</div>' + hint + '</div>';
-      }).join('') + '</div></div>';
-  }
+  html += '<div class="activity-grid">';
+  ACTIVITIES.forEach(i => {
+    const show = activeFilter === 'all' || i.tags.includes(activeFilter);
+    const tap = i.tap
+      ? ' onclick="showActivityDetail(\'' + i.tap + '\')"'
+      : ' onclick="speak(\'' + i.name.replace(/'/g, "\\'") + '\', null)"';
+    const hint = i.tap ? '<div class="tap-hint">Tap me!</div>' : '';
+    html += '<div class="activity-card' + (i.tap ? ' tappable' : '') + (show ? '' : ' hidden') + '"' + tap + '>' +
+      '<div class="activity-emoji">' + i.emoji + '</div>' +
+      '<div class="activity-name">' + i.name + '</div>' + hint + '</div>';
+  });
+  html += '</div>';
   document.getElementById('activitiesContainer').innerHTML = html;
+}
+
+function setFilter(id) {
+  activeFilter = id;
+  renderActivities();
 }
 
 function showActivityDetail(type) {
@@ -899,13 +923,15 @@ function showActivityDetail(type) {
 }
 
 function pickRandom() {
-  const all = Object.values(ACTIVITIES).flatMap(c => c.items);
-  const pick = all[Math.floor(Math.random() * all.length)];
+  const filtered = activeFilter === 'all' ? ACTIVITIES : ACTIVITIES.filter(a => a.tags.includes(activeFilter));
+  if (filtered.length === 0) return;
+  const pick = filtered[Math.floor(Math.random() * filtered.length)];
   document.getElementById('pickEmoji').textContent = pick.emoji;
   document.getElementById('pickText').textContent = pick.name;
+  speak(pick.name);
   const el = document.getElementById('pickResult');
   el.classList.remove('visible');
-  void el.offsetWidth; // reflow for re-animation
+  void el.offsetWidth;
   el.classList.add('visible');
 }
 
