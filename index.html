@@ -218,24 +218,59 @@
     .badge-card.locked .badge-name { color: #999; }
 
     /* ===== CHAT TAB ===== */
-    .chat-container { display: flex; flex-direction: column; height: calc(100vh - 160px); }
-    .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
-    .chat-bubble {
-      max-width: 85%; padding: 10px 14px;
-      border-radius: 16px; font-size: 15px;
-      line-height: 1.4; word-wrap: break-word; cursor: pointer;
+    .chat-container {
+      display: flex; flex-direction: column; align-items: center;
+      height: calc(100vh - 160px); justify-content: space-between;
+      touch-action: pan-y;
     }
-    .chat-bubble.assistant {
-      background: white; color: #333;
-      border-bottom-left-radius: 4px; align-self: flex-start;
+    .chat-avatar {
+      font-size: 64px; margin-top: 8px; animation: avatarBounce 2s ease infinite;
     }
-    .chat-bubble.user {
-      background: var(--primary); color: white;
-      border-bottom-right-radius: 4px; align-self: flex-end;
+    @keyframes avatarBounce {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    .chat-avatar.talking { animation: avatarTalk 0.3s ease infinite; }
+    @keyframes avatarTalk {
+      0%,100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+    .chat-speech {
+      background: white; color: #333; border-radius: 20px;
+      padding: 16px 20px; margin: 12px 8px; font-size: 17px;
+      font-weight: 600; line-height: 1.5; text-align: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      max-width: 95%; position: relative;
+      cursor: pointer; transition: transform 0.2s;
+    }
+    .chat-speech:active { transform: scale(0.97); }
+    .chat-speech::after {
+      content: ''; position: absolute; top: -10px; left: 50%;
+      transform: translateX(-50%);
+      border-left: 10px solid transparent; border-right: 10px solid transparent;
+      border-bottom: 10px solid white;
+    }
+    .chat-thinking {
+      display: none; color: rgba(255,255,255,0.8); font-size: 16px;
+      font-weight: 600; padding: 14px; text-align: center;
+    }
+    .chat-thinking.visible { display: block; }
+    .thinking-dots::after {
+      content: ''; animation: dots 1.4s steps(4,end) infinite;
+    }
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+    }
+    .chat-you-said {
+      color: rgba(255,255,255,0.6); font-size: 13px;
+      font-style: italic; text-align: center; min-height: 18px;
     }
     .chat-prompts {
       display: flex; flex-wrap: wrap; gap: 8px;
-      justify-content: center; padding: 8px 0; flex-shrink: 0;
+      justify-content: center; padding: 4px 0;
     }
     .chat-prompt-btn {
       background: white; border: none; border-radius: 16px;
@@ -246,14 +281,15 @@
       transition: transform 0.2s;
     }
     .chat-prompt-btn:active { transform: scale(0.95); }
-    .mic-area { display: flex; flex-direction: column; align-items: center; padding: 8px 0; flex-shrink: 0; }
+    .mic-area { display: flex; flex-direction: column; align-items: center; padding: 6px 0; }
     .mic-btn {
-      width: 64px; height: 64px; border-radius: 50%;
+      width: 72px; height: 72px; border-radius: 50%;
       background: white; border: 3px solid var(--primary);
-      font-size: 28px; cursor: pointer;
+      font-size: 32px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       -webkit-tap-highlight-color: transparent;
       transition: all 0.2s;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     }
     .mic-btn:active { transform: scale(0.95); }
     .mic-btn.listening {
@@ -262,15 +298,11 @@
     }
     @keyframes micPulse {
       0%,100% { box-shadow: 0 0 0 0 rgba(102,126,234,0.4); }
-      50% { box-shadow: 0 0 0 12px rgba(102,126,234,0); }
+      50% { box-shadow: 0 0 0 14px rgba(102,126,234,0); }
     }
     .mic-label {
-      font-size: 12px; color: rgba(255,255,255,0.7);
+      font-size: 13px; color: rgba(255,255,255,0.7);
       margin-top: 6px; font-weight: 600;
-    }
-    .chat-typing {
-      display: none; padding: 6px 0; text-align: center;
-      color: rgba(255,255,255,0.7); font-style: italic; font-size: 13px;
     }
     .chat-disabled {
       text-align: center; color: rgba(255,255,255,0.7);
@@ -911,10 +943,10 @@ function renderChat() {
   }
   el.innerHTML =
     '<div class="chat-container">' +
-    '<div class="chat-messages" id="chatMessages">' +
-    '<div class="chat-bubble assistant" onclick="speak(this.textContent)">Hi! I\'m Helper! Tap a button or hold the microphone to talk to me! 😊</div>' +
-    '</div>' +
-    '<div class="chat-typing" id="chatTyping">Helper is thinking...</div>' +
+    '<div class="chat-avatar" id="chatAvatar">🤖</div>' +
+    '<div class="chat-speech" id="chatSpeech" onclick="speak(this.textContent)">Hi! I\'m Helper! Tap a button or talk to me!</div>' +
+    '<div class="chat-thinking" id="chatThinking">🤔 Helper is thinking<span class="thinking-dots"></span></div>' +
+    '<div class="chat-you-said" id="chatYouSaid"></div>' +
     '<div class="chat-prompts" id="chatPrompts">' +
     CHAT_PROMPTS.map(p =>
       '<button class="chat-prompt-btn" onclick="sendChatText(\'' + p.text.replace(/'/g, "\\'") + '\')">' + p.emoji + ' ' + p.text + '</button>'
@@ -924,6 +956,7 @@ function renderChat() {
     '<button class="mic-btn" id="micBtn" onclick="toggleMic()">🎤</button>' +
     '<div class="mic-label" id="micLabel">Tap to talk</div>' +
     '</div></div>';
+  speak('Hi! I\'m Helper! Tap a button or talk to me!');
 }
 
 let activeFilter = 'all';
@@ -1069,20 +1102,18 @@ async function sendChatText(text) {
   if (!text || !text.trim()) return;
   text = text.trim();
 
-  const msgs = document.getElementById('chatMessages');
+  const speech = document.getElementById('chatSpeech');
   const prompts = document.getElementById('chatPrompts');
+  const thinking = document.getElementById('chatThinking');
+  const youSaid = document.getElementById('chatYouSaid');
+  const avatar = document.getElementById('chatAvatar');
+
+  // Show what the kid said
+  if (youSaid) youSaid.textContent = 'You said: "' + text + '"';
   if (prompts) prompts.style.display = 'none';
-
-  const userDiv = document.createElement('div');
-  userDiv.className = 'chat-bubble user';
-  userDiv.textContent = text;
-  userDiv.onclick = function() { speak(this.textContent); };
-  msgs.appendChild(userDiv);
-  speak(text);
+  if (speech) speech.style.display = 'none';
+  if (thinking) thinking.classList.add('visible');
   chatHistory.push({ role: 'user', content: text });
-  msgs.scrollTop = msgs.scrollHeight;
-
-  document.getElementById('chatTyping').style.display = 'block';
 
   try {
     const res = await fetch(config.workerUrl, {
@@ -1096,40 +1127,38 @@ async function sendChatText(text) {
     const rawText = await res.text();
     let data;
     try { data = JSON.parse(rawText); } catch (pe) {
-      const errDiv = document.createElement('div');
-      errDiv.className = 'chat-bubble assistant';
-      errDiv.textContent = "Worker error (status " + res.status + "): " + rawText.substring(0, 200);
-      msgs.appendChild(errDiv);
-      document.getElementById('chatTyping').style.display = 'none';
-      if (prompts) prompts.style.display = '';
-      msgs.scrollTop = msgs.scrollHeight;
+      showHelperReply("Oops! I can't talk right now. Try again!", speech, thinking, prompts, avatar);
       return;
     }
     if (data.error) {
-      const errDiv = document.createElement('div');
-      errDiv.className = 'chat-bubble assistant';
-      errDiv.textContent = "API error: " + (data.detail?.error?.message || data.message || data.error);
-      msgs.appendChild(errDiv);
+      showHelperReply("Hmm, something went wrong. Try again!", speech, thinking, prompts, avatar);
     } else {
       const reply = data.reply || data.content?.[0]?.text || "Hmm, I'm not sure what to say!";
-      const botDiv = document.createElement('div');
-      botDiv.className = 'chat-bubble assistant';
-      botDiv.textContent = reply;
-      botDiv.onclick = function() { speak(this.textContent); };
-      msgs.appendChild(botDiv);
       chatHistory.push({ role: 'assistant', content: reply });
-      speak(reply);
+      showHelperReply(reply, speech, thinking, prompts, avatar);
     }
   } catch (e) {
-    const errDiv = document.createElement('div');
-    errDiv.className = 'chat-bubble assistant';
-    errDiv.textContent = "Network error: " + e.message;
-    msgs.appendChild(errDiv);
+    showHelperReply("Oops! I can't reach my brain right now. Try again!", speech, thinking, prompts, avatar);
   }
+}
 
-  document.getElementById('chatTyping').style.display = 'none';
+function showHelperReply(text, speech, thinking, prompts, avatar) {
+  if (thinking) thinking.classList.remove('visible');
+  if (speech) {
+    speech.textContent = text;
+    speech.style.display = '';
+    speech.style.animation = 'none';
+    void speech.offsetWidth;
+    speech.style.animation = 'pop 0.4s ease';
+  }
   if (prompts) prompts.style.display = '';
-  msgs.scrollTop = msgs.scrollHeight;
+  // Animate avatar while speaking
+  if (avatar) avatar.classList.add('talking');
+  speak(text);
+  // Stop avatar animation when speech ends (estimate ~80ms per char)
+  setTimeout(function() {
+    if (avatar) avatar.classList.remove('talking');
+  }, Math.max(2000, text.length * 80));
 }
 
 function toggleMic() {
