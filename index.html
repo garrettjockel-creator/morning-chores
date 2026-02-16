@@ -281,26 +281,35 @@
     .chat-prompt-btn:active { transform: scale(0.95); }
     .mic-area { display: flex; flex-direction: column; align-items: center; padding: 6px 0; }
     .mic-btn {
-      width: 72px; height: 72px; border-radius: 50%;
-      background: white; border: 3px solid var(--primary);
-      font-size: 32px; cursor: pointer;
+      width: 80px; height: 80px; border-radius: 50%;
+      background: white; border: 4px solid var(--primary);
+      font-size: 36px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       -webkit-tap-highlight-color: transparent;
-      transition: all 0.2s;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      transition: all 0.3s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
     }
-    .mic-btn:active { transform: scale(0.95); }
+    .mic-btn:active { transform: scale(0.93); }
     .mic-btn.listening {
-      background: var(--primary); border-color: white;
+      background: var(--green); border-color: white;
+      animation: micPulse 1s ease infinite;
+      box-shadow: 0 0 0 0 rgba(52,211,153,0.4);
+    }
+    .mic-btn.convo-active {
+      background: #ef4444; border-color: white;
+      box-shadow: 0 4px 20px rgba(239,68,68,0.3);
+    }
+    .mic-btn.convo-active.listening {
+      background: var(--green); border-color: white;
       animation: micPulse 1s ease infinite;
     }
     @keyframes micPulse {
-      0%,100% { box-shadow: 0 0 0 0 rgba(102,126,234,0.4); }
-      50% { box-shadow: 0 0 0 14px rgba(102,126,234,0); }
+      0%,100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
+      50% { box-shadow: 0 0 0 16px rgba(52,211,153,0); }
     }
     .mic-label {
-      font-size: 13px; color: rgba(255,255,255,0.7);
-      margin-top: 6px; font-weight: 600;
+      font-size: 14px; color: rgba(255,255,255,0.8);
+      margin-top: 8px; font-weight: 700;
     }
     .chat-disabled {
       text-align: center; color: rgba(255,255,255,0.7);
@@ -725,19 +734,25 @@ function getLevelInfo(xp) {
 
 // ===== TEXT TO SPEECH =====
 let currentAudio = null;
+let onSpeakDone = null;
 
-function speak(text, btn) {
-  // Stop any current speech
+function stopSpeaking() {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   window.speechSynthesis.cancel();
+  onSpeakDone = null;
+}
 
-  if (!text) return;
+function speak(text, btn, callback) {
+  // Stop any current speech
+  stopSpeaking();
+  if (!text) { if (callback) callback(); return; }
+
+  onSpeakDone = callback || null;
 
   // Try cloud TTS if worker URL is configured
   if (config.workerUrl) {
     let ttsUrl = config.workerUrl;
     if (!ttsUrl.startsWith('http')) ttsUrl = 'https://' + ttsUrl;
-    // Ensure /tts path
     ttsUrl = ttsUrl.replace(/\/$/, '') + '/tts';
 
     if (btn) btn.classList.add('speaking');
@@ -752,17 +767,17 @@ function speak(text, btn) {
       return res.blob();
     })
     .then(function(blob) {
-      const url = URL.createObjectURL(blob);
+      var url = URL.createObjectURL(blob);
       currentAudio = new Audio(url);
       currentAudio.onended = function() {
         URL.revokeObjectURL(url);
         currentAudio = null;
         if (btn) btn.classList.remove('speaking');
+        if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
       };
       currentAudio.play();
     })
     .catch(function() {
-      // Fall back to browser voice
       speakBrowser(text, btn);
     });
     return;
@@ -772,11 +787,15 @@ function speak(text, btn) {
 }
 
 function speakBrowser(text, btn) {
-  const utter = new SpeechSynthesisUtterance(text);
+  var utter = new SpeechSynthesisUtterance(text);
   utter.rate = 0.9;
   utter.pitch = 1.05;
   utter.lang = 'en-US';
-  if (btn) { btn.classList.add('speaking'); utter.onend = function() { btn.classList.remove('speaking'); }; }
+  if (btn) btn.classList.add('speaking');
+  utter.onend = function() {
+    if (btn) btn.classList.remove('speaking');
+    if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
+  };
   window.speechSynthesis.speak(utter);
 }
 
@@ -970,7 +989,7 @@ function renderChat() {
   el.innerHTML =
     '<div class="chat-container">' +
     '<div class="chat-avatar" id="chatAvatar">🤖</div>' +
-    '<div class="chat-speech" id="chatSpeech" onclick="speak(this.textContent)">Hi! I\'m Helper! Tap a button or talk to me!</div>' +
+    '<div class="chat-speech" id="chatSpeech" onclick="interruptHelper()">Hi! I\'m Helper! Tap the big button to talk to me!</div>' +
     '<div class="chat-thinking" id="chatThinking">🤔 Helper is thinking<span class="thinking-dots"></span></div>' +
     '<div class="chat-you-said" id="chatYouSaid"></div>' +
     '<div class="chat-prompts" id="chatPrompts">' +
@@ -979,10 +998,10 @@ function renderChat() {
     ).join('') +
     '</div>' +
     '<div class="mic-area">' +
-    '<button class="mic-btn" id="micBtn" onclick="toggleMic()">🎤</button>' +
-    '<div class="mic-label" id="micLabel">Tap to talk</div>' +
+    '<button class="mic-btn" id="micBtn" onclick="toggleConversation()">🎤</button>' +
+    '<div class="mic-label" id="micLabel">Tap to start a conversation</div>' +
     '</div></div>';
-  speak('Hi! I\'m Helper! Tap a button or talk to me!');
+  speak('Hi! I\'m Helper! Tap the big button to talk to me!');
 }
 
 let activeFilter = 'all';
@@ -1123,26 +1142,32 @@ function closeModal(id) { document.getElementById(id).classList.remove('visible'
 // ===== CHAT =====
 let micRecognition = null;
 let micListening = false;
+let convoMode = false;
+let chatBusy = false;
 
 async function sendChatText(text) {
-  if (!text || !text.trim()) return;
+  if (!text || !text.trim() || chatBusy) return;
   text = text.trim();
+  chatBusy = true;
 
-  const speech = document.getElementById('chatSpeech');
-  const prompts = document.getElementById('chatPrompts');
-  const thinking = document.getElementById('chatThinking');
-  const youSaid = document.getElementById('chatYouSaid');
-  const avatar = document.getElementById('chatAvatar');
+  // Interrupt any current speech
+  stopSpeaking();
 
-  // Show what the kid said
+  var speech = document.getElementById('chatSpeech');
+  var prompts = document.getElementById('chatPrompts');
+  var thinking = document.getElementById('chatThinking');
+  var youSaid = document.getElementById('chatYouSaid');
+  var avatar = document.getElementById('chatAvatar');
+
   if (youSaid) youSaid.textContent = 'You said: "' + text + '"';
   if (prompts) prompts.style.display = 'none';
   if (speech) speech.style.display = 'none';
   if (thinking) thinking.classList.add('visible');
+  if (avatar) avatar.classList.remove('talking');
   chatHistory.push({ role: 'user', content: text });
 
   try {
-    const res = await fetch(config.workerUrl, {
+    var res = await fetch(config.workerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1150,25 +1175,30 @@ async function sendChatText(text) {
         context: { name: config.childName, level: getLevelInfo(profile.xp).title, streak: profile.streak }
       })
     });
-    const rawText = await res.text();
-    let data;
+    var rawText = await res.text();
+    var data;
     try { data = JSON.parse(rawText); } catch (pe) {
-      showHelperReply("Oops! I can't talk right now. Try again!", speech, thinking, prompts, avatar);
+      showHelperReply("Oops! I can't talk right now. Try again!");
       return;
     }
     if (data.error) {
-      showHelperReply("Hmm, something went wrong. Try again!", speech, thinking, prompts, avatar);
+      showHelperReply("Hmm, something went wrong. Try again!");
     } else {
-      const reply = data.reply || data.content?.[0]?.text || "Hmm, I'm not sure what to say!";
+      var reply = data.reply || data.content?.[0]?.text || "Hmm, I'm not sure what to say!";
       chatHistory.push({ role: 'assistant', content: reply });
-      showHelperReply(reply, speech, thinking, prompts, avatar);
+      showHelperReply(reply);
     }
   } catch (e) {
-    showHelperReply("Oops! I can't reach my brain right now. Try again!", speech, thinking, prompts, avatar);
+    showHelperReply("Oops! I can't reach my brain right now. Try again!");
   }
 }
 
-function showHelperReply(text, speech, thinking, prompts, avatar) {
+function showHelperReply(text) {
+  var speech = document.getElementById('chatSpeech');
+  var thinking = document.getElementById('chatThinking');
+  var prompts = document.getElementById('chatPrompts');
+  var avatar = document.getElementById('chatAvatar');
+
   if (thinking) thinking.classList.remove('visible');
   if (speech) {
     speech.textContent = text;
@@ -1177,36 +1207,74 @@ function showHelperReply(text, speech, thinking, prompts, avatar) {
     void speech.offsetWidth;
     speech.style.animation = 'pop 0.4s ease';
   }
-  if (prompts) prompts.style.display = '';
-  // Animate avatar while speaking
+  // Show prompts only if not in conversation mode
+  if (prompts) prompts.style.display = convoMode ? 'none' : '';
   if (avatar) avatar.classList.add('talking');
-  speak(text);
-  // Stop avatar animation when speech ends (estimate ~80ms per char)
-  setTimeout(function() {
+
+  // Speak the reply, then auto-listen if in conversation mode
+  speak(text, null, function() {
     if (avatar) avatar.classList.remove('talking');
-  }, Math.max(2000, text.length * 80));
+    chatBusy = false;
+    if (convoMode) {
+      // Auto-start listening after bot finishes speaking
+      startListening();
+    }
+  });
 }
 
-function toggleMic() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+function toggleConversation() {
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    const label = document.getElementById('micLabel');
+    var label = document.getElementById('micLabel');
     if (label) label.textContent = 'Voice not supported on this device';
     return;
   }
 
-  if (micListening && micRecognition) {
-    micRecognition.stop();
-    return;
+  if (convoMode) {
+    // End conversation
+    endConversation();
+  } else {
+    // Start conversation
+    convoMode = true;
+    var btn = document.getElementById('micBtn');
+    var label = document.getElementById('micLabel');
+    var prompts = document.getElementById('chatPrompts');
+    if (btn) { btn.classList.add('convo-active'); btn.textContent = '⏹'; }
+    if (label) label.textContent = 'Tap to end conversation';
+    if (prompts) prompts.style.display = 'none';
+    startListening();
   }
+}
+
+function endConversation() {
+  convoMode = false;
+  stopSpeaking();
+  if (micRecognition) { try { micRecognition.stop(); } catch(e) {} micRecognition = null; }
+  micListening = false;
+  chatBusy = false;
+  var btn = document.getElementById('micBtn');
+  var label = document.getElementById('micLabel');
+  var prompts = document.getElementById('chatPrompts');
+  if (btn) { btn.classList.remove('convo-active', 'listening'); btn.textContent = '🎤'; }
+  if (label) label.textContent = 'Tap to start a conversation';
+  if (prompts) prompts.style.display = '';
+}
+
+function startListening() {
+  if (!convoMode || chatBusy) return;
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+
+  // Stop previous recognition if any
+  if (micRecognition) { try { micRecognition.stop(); } catch(e) {} }
 
   micRecognition = new SpeechRecognition();
   micRecognition.lang = 'en-US';
   micRecognition.interimResults = false;
   micRecognition.maxAlternatives = 1;
 
-  const btn = document.getElementById('micBtn');
-  const label = document.getElementById('micLabel');
+  var btn = document.getElementById('micBtn');
+  var label = document.getElementById('micLabel');
 
   micRecognition.onstart = function() {
     micListening = true;
@@ -1215,27 +1283,47 @@ function toggleMic() {
   };
 
   micRecognition.onresult = function(e) {
-    const transcript = e.results[0][0].transcript;
+    var transcript = e.results[0][0].transcript;
+    micListening = false;
+    if (btn) btn.classList.remove('listening');
+    if (label) label.textContent = 'Tap to end conversation';
     sendChatText(transcript);
   };
 
   micRecognition.onerror = function(e) {
     micListening = false;
     if (btn) btn.classList.remove('listening');
-    if (e.error === 'no-speech') {
-      if (label) label.textContent = "I didn't hear anything. Try again!";
-    } else {
-      if (label) label.textContent = 'Tap to talk';
+    if (e.error === 'no-speech' && convoMode) {
+      if (label) label.textContent = "I didn't hear you. Listening again...";
+      // Re-listen after a short pause
+      setTimeout(function() { if (convoMode) startListening(); }, 500);
+    } else if (e.error === 'not-allowed' || e.error === 'service-not-available') {
+      endConversation();
+      if (label) label.textContent = 'Microphone not available';
     }
   };
 
   micRecognition.onend = function() {
     micListening = false;
     if (btn) btn.classList.remove('listening');
-    if (label) label.textContent = 'Tap to talk';
   };
 
   micRecognition.start();
+}
+
+// Allow interruption: tap speech bubble while bot is talking to stop and talk
+function interruptHelper() {
+  if (currentAudio || window.speechSynthesis.speaking) {
+    stopSpeaking();
+    var avatar = document.getElementById('chatAvatar');
+    if (avatar) avatar.classList.remove('talking');
+    chatBusy = false;
+    if (convoMode) startListening();
+  } else {
+    // If not speaking, replay the speech bubble
+    var speech = document.getElementById('chatSpeech');
+    if (speech) speak(speech.textContent);
+  }
 }
 
 // ===== INIT =====
