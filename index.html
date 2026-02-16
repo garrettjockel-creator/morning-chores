@@ -17,17 +17,16 @@
       --gold: #fbbf24;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      height: 100vh;
-      height: -webkit-fill-available;
-      display: flex;
-      flex-direction: column;
       -webkit-user-select: none;
       user-select: none;
       color: #1a1a2e;
-      overflow: hidden;
     }
 
     /* ===== TOP BAR ===== */
@@ -91,7 +90,6 @@
     }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
-    #activitiesTab, .activity-grid, .activity-card, .filter-bar, .filter-btn { touch-action: pan-y; }
 
     /* ===== TAB BAR ===== */
     #tabBar {
@@ -435,7 +433,7 @@
   <div id="loadingScreen"><div class="loading-spinner"></div>Loading...</div>
 
   <!-- App -->
-  <div id="app" style="display:none;flex-direction:column;height:100vh;height:-webkit-fill-available;">
+  <div id="app" style="display:none;flex-direction:column;height:100%;overflow:hidden;position:fixed;top:0;left:0;right:0;bottom:0;">
 
     <!-- Top Bar -->
     <div id="topBar">
