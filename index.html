@@ -898,7 +898,8 @@ async function toggleChore(choreId) {
       if (newLvl > oldLvl) {
         setTimeout(() => showLevelUp(newLvl), 300);
       } else {
-        speak('Plus ' + earned + ' points! You now have ' + profile.xp + ' points!');
+        const li = getLevelInfo(profile.xp);
+        speak('Plus ' + earned + ' points! You now have ' + li.inLvl + ' out of ' + li.need + ' points to reach level ' + (li.level + 1) + '!');
       }
       showStickerPop(choreId);
     }
@@ -911,7 +912,11 @@ async function toggleChore(choreId) {
       else if (profile.lastAllDoneDate !== today) profile.streak = 1;
       profile.lastAllDoneDate = today;
       if ([3,7,14,30].includes(profile.streak)) profile.xp += profile.streak * 5;
-      setTimeout(() => { showConfetti(); speak('All chores done! Bonus 25 points! You now have ' + profile.xp + ' points total! Great job today!'); }, 200);
+      setTimeout(() => {
+        const li = getLevelInfo(profile.xp);
+        showConfetti();
+        speak('All chores done! Bonus 25 points! You now have ' + li.inLvl + ' out of ' + li.need + ' points to reach level ' + (li.level + 1) + '! Great job today!');
+      }, 200);
     }
     checkBadges();
   } else {
