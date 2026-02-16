@@ -108,7 +108,7 @@ export default {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
+          model: 'claude-3-5-haiku-20241022',
           max_tokens: 150,
           system: systemPrompt,
           messages: messages.slice(-10).map(m => ({
@@ -121,7 +121,7 @@ export default {
       const data = await response.json();
 
       if (!response.ok) {
-        return jsonResponse({ error: 'API error', detail: data }, response.status, origin);
+        return jsonResponse({ error: 'API error', detail: data, status: response.status }, response.status, origin);
       }
 
       // Return just the reply text for simpler client parsing
@@ -129,7 +129,7 @@ export default {
       return jsonResponse({ reply, content: data.content }, 200, origin);
 
     } catch (e) {
-      return jsonResponse({ error: 'Failed to reach API' }, 502, origin);
+      return jsonResponse({ error: 'Failed to reach API', message: e.message }, 502, origin);
     }
   }
 };

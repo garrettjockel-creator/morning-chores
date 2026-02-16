@@ -907,16 +907,23 @@ async function sendChat() {
       })
     });
     const data = await res.json();
-    const reply = data.content?.[0]?.text || data.reply || "Hmm, I'm not sure what to say!";
-    const botDiv = document.createElement('div');
-    botDiv.className = 'chat-bubble assistant';
-    botDiv.textContent = reply;
-    msgs.appendChild(botDiv);
-    chatHistory.push({ role: 'assistant', content: reply });
+    if (data.error) {
+      const errDiv = document.createElement('div');
+      errDiv.className = 'chat-bubble assistant';
+      errDiv.textContent = "Oops! Something went wrong: " + (data.detail?.error?.message || data.error);
+      msgs.appendChild(errDiv);
+    } else {
+      const reply = data.reply || data.content?.[0]?.text || "Hmm, I'm not sure what to say!";
+      const botDiv = document.createElement('div');
+      botDiv.className = 'chat-bubble assistant';
+      botDiv.textContent = reply;
+      msgs.appendChild(botDiv);
+      chatHistory.push({ role: 'assistant', content: reply });
+    }
   } catch (e) {
     const errDiv = document.createElement('div');
     errDiv.className = 'chat-bubble assistant';
-    errDiv.textContent = "Oops! I can't talk right now. Try again later!";
+    errDiv.textContent = "Oops! Can't reach Helper: " + e.message;
     msgs.appendChild(errDiv);
   }
 
