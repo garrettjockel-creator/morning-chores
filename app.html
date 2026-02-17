@@ -544,6 +544,22 @@
     .vote-btn.active { opacity: 1; border-color: rgba(255,255,255,0.5); }
     .vote-btn:active { transform: scale(0.9); }
 
+    /* Reward Preview Onboarding */
+    .reward-preview-wrap {
+      width: 100%; max-width: 360px; max-height: 50vh;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      margin-top: 16px;
+    }
+    .reward-preview-card {
+      background: rgba(255,255,255,0.95); border-radius: 14px;
+      padding: 12px 14px; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 10px;
+      color: #333;
+    }
+    .reward-preview-emoji { font-size: 28px; flex-shrink: 0; }
+    .reward-preview-name { font-size: 15px; font-weight: 700; flex: 1; }
+    .reward-preview-cost { font-size: 13px; font-weight: 600; color: #888; flex-shrink: 0; }
+
     /* ===== REFLECTION OVERLAY ===== */
     #reflectionOverlay {
       position: fixed; inset: 0; z-index: 1500;
@@ -683,6 +699,7 @@
     <div class="onboard-emoji" id="onboardEmoji"></div>
     <div class="onboard-title" id="onboardTitle"></div>
     <div class="onboard-text" id="onboardText"></div>
+    <div class="reward-preview-wrap" id="rewardPreviewWrap" style="display:none;"></div>
     <div class="chore-review-wrap" id="choreReviewWrap" style="display:none;"></div>
     <div class="theme-picker-wrap" id="themePickerWrap" style="display:none;"></div>
     <button class="onboard-btn" id="onboardBtn" onclick="nextOnboardSlide()">Next</button>
@@ -1355,7 +1372,7 @@ const ONBOARD_SLIDES = [
   { emoji: '👋', title: 'Hey {name}!', text: 'Welcome to Morning Chores!' },
   { emoji: '🌟', title: 'You were signed up!', text: 'To become the best version of yourself!' },
   { emoji: '⭐', title: 'Complete your chores!', text: 'Every morning, complete your chores to earn points!' },
-  { emoji: '🎁', title: 'Earn real rewards!', text: 'Earn enough points and redeem real rewards!' },
+  { emoji: '🎁', title: 'Look what you can earn!', text: 'Complete chores to earn points for these rewards!', rewardPreview: true },
   { emoji: '🤖', title: 'Meet Helper!', text: 'Talk to Helper, your virtual librarian, and get fun ideas!' },
   { emoji: '🎨', title: 'Pick your style!', text: 'Choose your favorite team or color', themePicker: true },
   { emoji: '📋', title: 'Here are your chores!', text: 'Let us know what you think!', choreReview: true },
@@ -1390,6 +1407,24 @@ function renderOnboardSlide() {
     themeWrap.style.display = 'block';
   } else {
     themeWrap.style.display = 'none';
+  }
+
+  // Show/hide reward preview
+  const rewardWrap = document.getElementById('rewardPreviewWrap');
+  if (slide.rewardPreview) {
+    const rewardList = REWARDS.length ? REWARDS : DEFAULT_REWARDS;
+    let rhtml = '';
+    rewardList.forEach(r => {
+      rhtml += '<div class="reward-preview-card">' +
+        '<div class="reward-preview-emoji">' + r.emoji + '</div>' +
+        '<div class="reward-preview-name">' + r.name + '</div>' +
+        '<div class="reward-preview-cost">' + r.cost + ' pts</div>' +
+        '</div>';
+    });
+    rewardWrap.innerHTML = rhtml;
+    rewardWrap.style.display = 'block';
+  } else {
+    rewardWrap.style.display = 'none';
   }
 
   // Show/hide chore review
