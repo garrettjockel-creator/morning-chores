@@ -265,6 +265,14 @@
       <button class="btn-add" onclick="openRewardForm()">+ Add Reward</button>
     </div>
 
+    <!-- Activities -->
+    <div class="section">
+      <h3>Activity Ideas</h3>
+      <p style="font-size:12px;color:#999;margin-bottom:10px;">Custom activities you add will appear alongside the built-in ones.</p>
+      <div id="activitiesManager"></div>
+      <button class="btn-add" onclick="openActivityForm()">+ Add Activity</button>
+    </div>
+
     <!-- QR Code -->
     <div class="section qr-section" id="qrSection">
       <h3>Get App on Kid's Device</h3>
@@ -365,6 +373,36 @@
       <div class="form-actions">
         <button class="btn-cancel" onclick="closeRewardForm()">Cancel</button>
         <button class="btn-save" onclick="saveReward()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Form Modal -->
+  <div class="form-overlay" id="activityFormOverlay">
+    <div class="form-card">
+      <h3>Add Activity</h3>
+      <div class="form-group">
+        <label>Activity Name</label>
+        <input id="afName" placeholder="e.g. Go roller skating">
+      </div>
+      <div class="form-group">
+        <label>Emoji</label>
+        <input id="afEmoji" placeholder="e.g. ⛸️" maxlength="4">
+      </div>
+      <div class="form-group">
+        <label>Tags (select all that apply)</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+          <label style="font-size:13px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="af-tag" value="inside"> 🏠 Inside</label>
+          <label style="font-size:13px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="af-tag" value="outside"> 🌳 Outside</label>
+          <label style="font-size:13px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="af-tag" value="solo"> 👤 Solo</label>
+          <label style="font-size:13px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="af-tag" value="siblings"> 👫 Siblings</label>
+          <label style="font-size:13px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="af-tag" value="parent"> 👨‍👦 Parent</label>
+          <label style="font-size:13px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="af-tag" value="drive"> 🚗 Drive</label>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="closeActivityForm()">Cancel</button>
+        <button class="btn-save" onclick="saveActivity()">Save</button>
       </div>
     </div>
   </div>
@@ -575,11 +613,17 @@ async function loadDashData() {
   const rewards = rSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   rewardsList = rewards;
 
+  // Activities
+  const aSnap = await familyRef.collection('activities').get();
+  const activities = aSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  activitiesList = activities;
+
   renderStats(completions, days);
   renderChart(completions, days);
   renderChoreManager();
   renderGoals(goals);
   renderRewardsManager(rewards);
+  renderActivitiesManager(activities);
   populateSettings();
 }
 
@@ -818,6 +862,58 @@ async function saveReward() {
 async function deleteReward(id) {
   if (!confirm('Remove this reward?')) return;
   await familyRef.collection('rewards').doc(id).delete();
+  await loadDashData();
+}
+
+// ===== ACTIVITY CRUD =====
+let activitiesList = [];
+
+function renderActivitiesManager(activities) {
+  const el = document.getElementById('activitiesManager');
+  if (!activities || activities.length === 0) {
+    el.innerHTML = '<p style="color:#999;font-size:13px;">No custom activities yet.</p>';
+    return;
+  }
+  el.innerHTML = activities.map(a =>
+    '<div class="chore-row">' +
+    '<div class="chore-row-icon">' + (a.emoji || '🎯') + '</div>' +
+    '<div class="chore-row-info"><div class="chore-row-title">' + a.name + '</div>' +
+    '<div class="chore-row-sub">' + (a.tags || []).join(', ') + '</div></div>' +
+    '<div class="chore-row-actions">' +
+    '<button class="btn-sm btn-del" onclick="deleteActivity(\'' + a.id + '\')">Del</button>' +
+    '</div></div>'
+  ).join('');
+}
+
+function openActivityForm() {
+  document.getElementById('afName').value = '';
+  document.getElementById('afEmoji').value = '';
+  document.querySelectorAll('.af-tag').forEach(cb => cb.checked = false);
+  document.getElementById('activityFormOverlay').classList.add('visible');
+}
+
+function closeActivityForm() { document.getElementById('activityFormOverlay').classList.remove('visible'); }
+
+async function saveActivity() {
+  const name = document.getElementById('afName').value.trim();
+  const emoji = document.getElementById('afEmoji').value.trim() || '🎯';
+  const tags = [];
+  document.querySelectorAll('.af-tag:checked').forEach(cb => tags.push(cb.value));
+  if (!name) return;
+  if (tags.length === 0) tags.push('inside', 'solo');
+
+  await familyRef.collection('activities').doc().set({
+    name: name,
+    emoji: emoji,
+    tags: tags,
+  });
+  closeActivityForm();
+  await loadDashData();
+}
+
+async function deleteActivity(id) {
+  if (!confirm('Remove this activity?')) return;
+  await familyRef.collection('activities').doc(id).delete();
   await loadDashData();
 }
 

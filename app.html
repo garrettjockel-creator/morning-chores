@@ -807,7 +807,8 @@ const FILTERS = [
   { id: 'drive',    emoji: '🚗', label: 'Drive To' },
 ];
 
-const ACTIVITIES = [
+let customActivities = [];
+const DEFAULT_ACTIVITIES = [
   { emoji: '🚲', name: 'Ride your bike',          tags: ['outside','solo','siblings'] },
   { emoji: '⚾', name: 'Play catch',              tags: ['outside','siblings','parent'] },
   { emoji: '🥾', name: 'Nature walk',             tags: ['outside','parent','siblings'] },
@@ -851,6 +852,10 @@ const ACTIVITIES = [
   { emoji: '🎨', name: 'Draw for God',            tags: ['inside','solo'], tap: 'draw' },
   { emoji: '😊', name: '3 thankful things',       tags: ['inside','solo','siblings'] },
 ];
+
+function getAllActivities() {
+  return DEFAULT_ACTIVITIES.concat(customActivities);
+}
 
 const BIBLE_STORIES = [
   { title: 'David and Goliath', text: 'A young boy named David trusted God and defeated a giant named Goliath with just a sling and a stone. God can help us be brave even when things seem scary! (1 Samuel 17)' },
@@ -1345,6 +1350,13 @@ function updateProgress() {
 // ===== GOALS (KID SIDE) =====
 let kidGoals = [];
 
+async function loadCustomActivities() {
+  try {
+    const snap = await familyRef.collection('activities').get();
+    customActivities = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { customActivities = []; }
+}
+
 async function loadRewards() {
   try {
     const snap = await familyRef.collection('rewards').orderBy('cost').get();
@@ -1483,7 +1495,7 @@ function renderActivities() {
     '<div class="pick-result" id="pickResult"><div class="pick-result-emoji" id="pickEmoji"></div>' +
     '<div class="pick-result-text" id="pickText"></div></div>';
   html += '<div class="activity-grid">';
-  ACTIVITIES.forEach(i => {
+  getAllActivities().forEach(i => {
     const show = activeFilter === 'all' || i.tags.includes(activeFilter);
     const tap = i.tap
       ? ' onclick="showActivityDetail(\'' + i.tap + '\')"'
@@ -1500,6 +1512,8 @@ function renderActivities() {
 function setFilter(id) {
   activeFilter = id;
   renderActivities();
+  var f = FILTERS.find(function(x) { return x.id === id; });
+  if (f) speak(f.label);
 }
 
 function showActivityDetail(type) {
@@ -1517,7 +1531,8 @@ function showActivityDetail(type) {
 }
 
 function pickRandom() {
-  const filtered = activeFilter === 'all' ? ACTIVITIES : ACTIVITIES.filter(a => a.tags.includes(activeFilter));
+  const all = getAllActivities();
+  const filtered = activeFilter === 'all' ? all : all.filter(a => a.tags.includes(activeFilter));
   if (filtered.length === 0) return;
   const pick = filtered[Math.floor(Math.random() * filtered.length)];
   document.getElementById('pickEmoji').textContent = pick.emoji;
@@ -1899,7 +1914,7 @@ async function init() {
     await initFirebase();
     await loadFamilyData();
     await Promise.all([loadProfile(), loadChores()]);
-    await Promise.all([loadToday(), loadGoals(), loadRewards()]);
+    await Promise.all([loadToday(), loadGoals(), loadRewards(), loadCustomActivities()]);
     checkStreakOnLoad();
 
     // Apply saved theme (or default)
