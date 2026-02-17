@@ -258,6 +258,13 @@
       <button class="btn-add" onclick="openGoalForm()">+ Add Goal</button>
     </div>
 
+    <!-- Rewards -->
+    <div class="section">
+      <h3>Rewards</h3>
+      <div id="rewardsManager"></div>
+      <button class="btn-add" onclick="openRewardForm()">+ Add Reward</button>
+    </div>
+
     <!-- QR Code -->
     <div class="section qr-section" id="qrSection">
       <h3>Get App on Kid's Device</h3>
@@ -334,6 +341,30 @@
       <div class="form-actions">
         <button class="btn-cancel" onclick="closeGoalForm()">Cancel</button>
         <button class="btn-save" onclick="saveGoal()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reward Form Modal -->
+  <div class="form-overlay" id="rewardFormOverlay">
+    <div class="form-card">
+      <h3 id="rewardFormTitle">Add Reward</h3>
+      <div class="form-group">
+        <label>Reward Name</label>
+        <input id="rfName" placeholder="e.g. $20 Gift Card">
+      </div>
+      <div class="form-group">
+        <label>Emoji</label>
+        <input id="rfEmoji" placeholder="e.g. 🎁" maxlength="4">
+      </div>
+      <div class="form-group">
+        <label>Point Cost</label>
+        <input id="rfCost" type="number" placeholder="e.g. 500" min="1">
+      </div>
+      <input type="hidden" id="rfEditId">
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="closeRewardForm()">Cancel</button>
+        <button class="btn-save" onclick="saveReward()">Save</button>
       </div>
     </div>
   </div>
@@ -539,10 +570,16 @@ async function loadDashData() {
   const gSnap = await familyRef.collection('goals').orderBy('createdAt', 'desc').get();
   const goals = gSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
+  // Rewards
+  const rSnap = await familyRef.collection('rewards').orderBy('cost').get();
+  const rewards = rSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  rewardsList = rewards;
+
   renderStats(completions, days);
   renderChart(completions, days);
   renderChoreManager();
   renderGoals(goals);
+  renderRewardsManager(rewards);
   populateSettings();
 }
 
@@ -714,6 +751,73 @@ async function toggleGoal(id, completed) {
 async function deleteGoal(id) {
   if (!confirm('Remove this goal?')) return;
   await familyRef.collection('goals').doc(id).delete();
+  await loadDashData();
+}
+
+// ===== REWARD CRUD =====
+function renderRewardsManager(rewards) {
+  const el = document.getElementById('rewardsManager');
+  if (!rewards || rewards.length === 0) {
+    el.innerHTML = '<p style="color:#999;font-size:13px;">No custom rewards yet. Default rewards will be shown to your kid.</p>';
+    return;
+  }
+  el.innerHTML = rewards.map(r =>
+    '<div class="chore-row">' +
+    '<div class="chore-row-icon">' + (r.emoji || '🎁') + '</div>' +
+    '<div class="chore-row-info"><div class="chore-row-title">' + r.name + '</div>' +
+    '<div class="chore-row-sub">' + r.cost + ' points</div></div>' +
+    '<div class="chore-row-actions">' +
+    '<button class="btn-sm btn-edit" onclick="editReward(\'' + r.id + '\')">Edit</button>' +
+    '<button class="btn-sm btn-del" onclick="deleteReward(\'' + r.id + '\')">Del</button>' +
+    '</div></div>'
+  ).join('');
+}
+
+let rewardsList = [];
+
+function openRewardForm(editId) {
+  document.getElementById('rfEditId').value = editId || '';
+  if (editId) {
+    const r = rewardsList.find(x => x.id === editId);
+    if (!r) return;
+    document.getElementById('rewardFormTitle').textContent = 'Edit Reward';
+    document.getElementById('rfName').value = r.name || '';
+    document.getElementById('rfEmoji').value = r.emoji || '';
+    document.getElementById('rfCost').value = r.cost || '';
+  } else {
+    document.getElementById('rewardFormTitle').textContent = 'Add Reward';
+    document.getElementById('rfName').value = '';
+    document.getElementById('rfEmoji').value = '';
+    document.getElementById('rfCost').value = '';
+  }
+  document.getElementById('rewardFormOverlay').classList.add('visible');
+}
+
+function editReward(id) { openRewardForm(id); }
+
+function closeRewardForm() { document.getElementById('rewardFormOverlay').classList.remove('visible'); }
+
+async function saveReward() {
+  const editId = document.getElementById('rfEditId').value;
+  const data = {
+    name: document.getElementById('rfName').value.trim(),
+    emoji: document.getElementById('rfEmoji').value.trim() || '🎁',
+    cost: parseInt(document.getElementById('rfCost').value) || 100,
+  };
+  if (!data.name) return;
+
+  if (editId) {
+    await familyRef.collection('rewards').doc(editId).update(data);
+  } else {
+    await familyRef.collection('rewards').doc().set(data);
+  }
+  closeRewardForm();
+  await loadDashData();
+}
+
+async function deleteReward(id) {
+  if (!confirm('Remove this reward?')) return;
+  await familyRef.collection('rewards').doc(id).delete();
   await loadDashData();
 }
 

@@ -790,11 +790,12 @@ const LEVELS = [
   { level: 10, xp: 2300, title: 'Ultimate Champion' },
 ];
 
-const REWARDS = [
+const DEFAULT_REWARDS = [
   { id: 'reward-20',  emoji: '💵', name: '$20 Reward',  cost: 500,  dollars: 20 },
   { id: 'reward-50',  emoji: '💰', name: '$50 Reward',  cost: 1000, dollars: 50 },
   { id: 'reward-200', emoji: '🤑', name: '$200 Reward', cost: 2000, dollars: 200 },
 ];
+let REWARDS = [];
 
 const FILTERS = [
   { id: 'all',      emoji: '✨', label: 'All' },
@@ -890,32 +891,32 @@ const STICKER_EMOJIS = ['⭐','🌟','✨','💫','🎯','👍','🙌','💪','�
 
 const THEMES = [
   // Sports Teams
-  { id: 'chiefs',     name: 'Chiefs',      emoji: '🏈', primary: '#E31837', primaryDark: '#FFB612', category: 'team' },
-  { id: 'cowboys',    name: 'Cowboys',     emoji: '⭐', primary: '#003594', primaryDark: '#041E42', category: 'team' },
-  { id: 'packers',    name: 'Packers',     emoji: '🧀', primary: '#203731', primaryDark: '#FFB612', category: 'team' },
-  { id: 'lakers',     name: 'Lakers',      emoji: '🏀', primary: '#552583', primaryDark: '#FDB927', category: 'team' },
-  { id: 'warriors',   name: 'Warriors',    emoji: '🏀', primary: '#1D428A', primaryDark: '#FFC72C', category: 'team' },
-  { id: 'yankees',    name: 'Yankees',     emoji: '⚾', primary: '#003087', primaryDark: '#0C2340', category: 'team' },
-  { id: 'dodgers',    name: 'Dodgers',     emoji: '⚾', primary: '#005A9C', primaryDark: '#002F6C', category: 'team' },
-  { id: 'manutd',     name: 'Man United',  emoji: '⚽', primary: '#DA291C', primaryDark: '#000000', category: 'team' },
-  { id: 'barcelona',  name: 'Barcelona',   emoji: '⚽', primary: '#A50044', primaryDark: '#004D98', category: 'team' },
-  { id: 'avalanche',  name: 'Avalanche',   emoji: '🏒', primary: '#6F263D', primaryDark: '#236192', category: 'team' },
-  { id: 'lightning',  name: 'Lightning',   emoji: '🏒', primary: '#002868', primaryDark: '#000000', category: 'team' },
-  { id: 'realmadrid', name: 'Real Madrid', emoji: '⚽', primary: '#FEBE10', primaryDark: '#00529F', category: 'team' },
-  { id: 'steelers',   name: 'Steelers',    emoji: '🏈', primary: '#FFB612', primaryDark: '#101820', category: 'team' },
-  { id: 'pirates',    name: 'Pirates',     emoji: '⚾', primary: '#FDB827', primaryDark: '#27251F', category: 'team' },
-  { id: 'penguins',   name: 'Penguins',    emoji: '🏒', primary: '#FCB514', primaryDark: '#000000', category: 'team' },
-  { id: 'duquesne',   name: 'Duquesne Dukes', emoji: '🏀', primary: '#002D62', primaryDark: '#BA0C2F', category: 'team' },
-  { id: 'stkillianceltics', name: 'St. Killian Celtics', emoji: '☘️', primary: '#007A33', primaryDark: '#FFFFFF', category: 'team' },
+  { id: 'chiefs',     name: 'Chiefs',      emoji: '🏈', primary: '#E31837', primaryDark: '#FFB612', category: 'team', fact: 'The Chiefs won their first Super Bowl in 50 years in 2020!' },
+  { id: 'cowboys',    name: 'Cowboys',     emoji: '⭐', primary: '#003594', primaryDark: '#041E42', category: 'team', fact: 'The Cowboys are called America\'s Team and have 5 Super Bowl wins!' },
+  { id: 'packers',    name: 'Packers',     emoji: '🧀', primary: '#203731', primaryDark: '#FFB612', category: 'team', fact: 'The Packers are the only team owned by their fans!' },
+  { id: 'lakers',     name: 'Lakers',      emoji: '🏀', primary: '#552583', primaryDark: '#FDB927', category: 'team', fact: 'The Lakers have won 17 championships, the most in the NBA along with the Celtics!' },
+  { id: 'warriors',   name: 'Warriors',    emoji: '🏀', primary: '#1D428A', primaryDark: '#FFC72C', category: 'team', fact: 'Steph Curry made the Warriors famous for shooting three-pointers!' },
+  { id: 'yankees',    name: 'Yankees',     emoji: '⚾', primary: '#003087', primaryDark: '#0C2340', category: 'team', fact: 'The Yankees have won 27 World Series, more than any other team!' },
+  { id: 'dodgers',    name: 'Dodgers',     emoji: '⚾', primary: '#005A9C', primaryDark: '#002F6C', category: 'team', fact: 'The Dodgers started in Brooklyn, New York before moving to Los Angeles!' },
+  { id: 'manutd',     name: 'Man United',  emoji: '⚽', primary: '#DA291C', primaryDark: '#000000', category: 'team', fact: 'Manchester United plays at Old Trafford, called the Theatre of Dreams!' },
+  { id: 'barcelona',  name: 'Barcelona',   emoji: '⚽', primary: '#A50044', primaryDark: '#004D98', category: 'team', fact: 'Barcelona\'s motto is More than a Club, and their stadium fits over 99,000 people!' },
+  { id: 'avalanche',  name: 'Avalanche',   emoji: '🏒', primary: '#6F263D', primaryDark: '#236192', category: 'team', fact: 'The Avalanche play in Denver, Colorado, one of the highest cities in America!' },
+  { id: 'lightning',  name: 'Lightning',   emoji: '🏒', primary: '#002868', primaryDark: '#000000', category: 'team', fact: 'The Tampa Bay Lightning won back-to-back Stanley Cups in 2020 and 2021!' },
+  { id: 'realmadrid', name: 'Real Madrid', emoji: '⚽', primary: '#FEBE10', primaryDark: '#00529F', category: 'team', fact: 'Real Madrid has won the Champions League a record 15 times!' },
+  { id: 'steelers',   name: 'Steelers',    emoji: '🏈', primary: '#FFB612', primaryDark: '#101820', category: 'team', fact: 'The Steelers have 6 Super Bowl wins and are named after Pittsburgh\'s steel industry!' },
+  { id: 'pirates',    name: 'Pirates',     emoji: '⚾', primary: '#FDB827', primaryDark: '#27251F', category: 'team', fact: 'The Pirates play at PNC Park, one of the most beautiful ballparks in America!' },
+  { id: 'penguins',   name: 'Penguins',    emoji: '🏒', primary: '#FCB514', primaryDark: '#000000', category: 'team', fact: 'Sidney Crosby led the Penguins to 3 Stanley Cup championships!' },
+  { id: 'duquesne',   name: 'Duquesne Dukes', emoji: '🏀', primary: '#002D62', primaryDark: '#BA0C2F', category: 'team', fact: 'Duquesne University is on a bluff overlooking downtown Pittsburgh!' },
+  { id: 'stkillianceltics', name: 'St. Killian Celtics', emoji: '☘️', primary: '#007A33', primaryDark: '#FFFFFF', category: 'team', fact: 'The Celtics are named after an ancient warrior people from Ireland and Scotland!' },
   // Color Palettes
-  { id: 'purple-galaxy', name: 'Purple Galaxy', emoji: '🔮', primary: '#667eea', primaryDark: '#764ba2', category: 'color' },
-  { id: 'ocean-blue',   name: 'Ocean Blue',    emoji: '🌊', primary: '#0ea5e9', primaryDark: '#0369a1', category: 'color' },
-  { id: 'fire-red',     name: 'Fire Red',      emoji: '🔥', primary: '#ef4444', primaryDark: '#991b1b', category: 'color' },
-  { id: 'jungle-green', name: 'Jungle Green',  emoji: '🌴', primary: '#22c55e', primaryDark: '#166534', category: 'color' },
-  { id: 'sunset-orange',name: 'Sunset Orange', emoji: '🌅', primary: '#f97316', primaryDark: '#c2410c', category: 'color' },
-  { id: 'hot-pink',     name: 'Hot Pink',      emoji: '💖', primary: '#ec4899', primaryDark: '#9d174d', category: 'color' },
-  { id: 'midnight',     name: 'Midnight',      emoji: '🌙', primary: '#6366f1', primaryDark: '#1e1b4b', category: 'color' },
-  { id: 'golden',       name: 'Golden',        emoji: '✨', primary: '#eab308', primaryDark: '#854d0e', category: 'color' },
+  { id: 'purple-galaxy', name: 'Purple Galaxy', emoji: '🔮', primary: '#667eea', primaryDark: '#764ba2', category: 'color', fact: 'Purple is the color of royalty because it used to be super rare and expensive!' },
+  { id: 'ocean-blue',   name: 'Ocean Blue',    emoji: '🌊', primary: '#0ea5e9', primaryDark: '#0369a1', category: 'color', fact: 'The ocean covers more than 70 percent of the Earth!' },
+  { id: 'fire-red',     name: 'Fire Red',      emoji: '🔥', primary: '#ef4444', primaryDark: '#991b1b', category: 'color', fact: 'Red is the first color a baby can see after black and white!' },
+  { id: 'jungle-green', name: 'Jungle Green',  emoji: '🌴', primary: '#22c55e', primaryDark: '#166534', category: 'color', fact: 'The Amazon rainforest makes about 20 percent of the world\'s oxygen!' },
+  { id: 'sunset-orange',name: 'Sunset Orange', emoji: '🌅', primary: '#f97316', primaryDark: '#c2410c', category: 'color', fact: 'Sunsets look orange because sunlight travels through more air and the blue light scatters away!' },
+  { id: 'hot-pink',     name: 'Hot Pink',      emoji: '💖', primary: '#ec4899', primaryDark: '#9d174d', category: 'color', fact: 'Pink used to be considered a bold color for boys, not girls!' },
+  { id: 'midnight',     name: 'Midnight',      emoji: '🌙', primary: '#6366f1', primaryDark: '#1e1b4b', category: 'color', fact: 'At midnight, you can see the most stars because the sky is darkest!' },
+  { id: 'golden',       name: 'Golden',        emoji: '✨', primary: '#eab308', primaryDark: '#854d0e', category: 'color', fact: 'Gold is so soft you can shape it with your hands, and it never rusts!' },
 ];
 
 let selectedThemeId = 'purple-galaxy';
@@ -1343,6 +1344,17 @@ function updateProgress() {
 
 // ===== GOALS (KID SIDE) =====
 let kidGoals = [];
+
+async function loadRewards() {
+  try {
+    const snap = await familyRef.collection('rewards').orderBy('cost').get();
+    if (!snap.empty) {
+      REWARDS = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } else {
+      REWARDS = DEFAULT_REWARDS;
+    }
+  } catch (e) { REWARDS = DEFAULT_REWARDS; }
+}
 
 async function loadGoals() {
   try {
@@ -1844,6 +1856,12 @@ function selectTheme(themeId, containerId) {
   applyTheme(themeId);
   var container = document.getElementById(containerId);
   if (container) container.innerHTML = buildThemeGridHtml(containerId);
+  // Announce the theme name and fun fact
+  var theme = THEMES.find(function(t) { return t.id === themeId; });
+  if (theme) {
+    var msg = theme.name + '! ' + (theme.fact || 'Great choice!');
+    speak(msg);
+  }
   // Save to Firestore immediately when picking from modal
   if (containerId === 'themeModalBody') {
     familyData.kidTheme = themeId;
@@ -1881,7 +1899,7 @@ async function init() {
     await initFirebase();
     await loadFamilyData();
     await Promise.all([loadProfile(), loadChores()]);
-    await Promise.all([loadToday(), loadGoals()]);
+    await Promise.all([loadToday(), loadGoals(), loadRewards()]);
     checkStreakOnLoad();
 
     // Apply saved theme (or default)
