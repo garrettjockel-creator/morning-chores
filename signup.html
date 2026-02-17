@@ -303,22 +303,22 @@ const firebaseConfig = {
 };
 
 const CHORE_CATALOG = [
-  { title: 'Feed the Dog', subtitle: 'Give her food & fresh water', icon: '🐶' },
-  { title: '30 Push-Ups', subtitle: 'Get strong!', icon: '💪' },
-  { title: 'Load the Dishwasher', subtitle: 'Put dirty dishes in', icon: '🧽' },
-  { title: 'Unload the Dishwasher', subtitle: 'Put clean dishes away', icon: '✨' },
-  { title: 'Read About Jesus', subtitle: '10 minutes of Bible reading', icon: '📖' },
-  { title: 'Turn Off Your Fan', subtitle: 'Save energy!', icon: '🌀' },
-  { title: 'Make Your Bed', subtitle: 'Nice and tidy!', icon: '🛏️' },
-  { title: 'Brush Your Teeth', subtitle: 'Sparkle sparkle!', icon: '🪥' },
-  { title: 'Get Dressed', subtitle: 'Pick out your outfit', icon: '👕' },
-  { title: 'Clean Up Toys', subtitle: 'Everything in its place', icon: '🧸' },
-  { title: 'Read a Book', subtitle: '10 minutes of reading', icon: '📚' },
-  { title: 'Take Out Trash', subtitle: 'Keep the house clean', icon: '🗑️' },
-  { title: 'Water the Plants', subtitle: 'Keep them growing!', icon: '🌱' },
-  { title: 'Practice Writing', subtitle: '10 minutes of handwriting', icon: '✍️' },
-  { title: 'Practice Math', subtitle: '10 minutes of math', icon: '🔢' },
-  { title: 'Fold Laundry', subtitle: 'Fold and put away', icon: '👕' },
+  { title: 'Feed the Dog', subtitle: 'Give her food & fresh water', icon: '🐶', timeOfDay: 'morning' },
+  { title: '30 Push-Ups', subtitle: 'Get strong!', icon: '💪', timeOfDay: 'morning' },
+  { title: 'Load the Dishwasher', subtitle: 'Put dirty dishes in', icon: '🧽', timeOfDay: 'evening' },
+  { title: 'Unload the Dishwasher', subtitle: 'Put clean dishes away', icon: '✨', timeOfDay: 'morning' },
+  { title: 'Read About Jesus', subtitle: '10 minutes of Bible reading', icon: '📖', timeOfDay: 'morning' },
+  { title: 'Turn Off Your Fan', subtitle: 'Save energy!', icon: '🌀', timeOfDay: 'morning' },
+  { title: 'Make Your Bed', subtitle: 'Nice and tidy!', icon: '🛏️', timeOfDay: 'morning' },
+  { title: 'Brush Your Teeth', subtitle: 'Sparkle sparkle!', icon: '🪥', timeOfDay: 'morning' },
+  { title: 'Get Dressed', subtitle: 'Pick out your outfit', icon: '👕', timeOfDay: 'morning' },
+  { title: 'Clean Up Toys', subtitle: 'Everything in its place', icon: '🧸', timeOfDay: 'afternoon' },
+  { title: 'Read a Book', subtitle: '10 minutes of reading', icon: '📚', timeOfDay: 'afternoon' },
+  { title: 'Take Out Trash', subtitle: 'Keep the house clean', icon: '🗑️', timeOfDay: 'evening' },
+  { title: 'Water the Plants', subtitle: 'Keep them growing!', icon: '🌱', timeOfDay: 'afternoon' },
+  { title: 'Practice Writing', subtitle: '10 minutes of handwriting', icon: '✍️', timeOfDay: 'afternoon' },
+  { title: 'Practice Math', subtitle: '10 minutes of math', icon: '🔢', timeOfDay: 'afternoon' },
+  { title: 'Fold Laundry', subtitle: 'Fold and put away', icon: '👕', timeOfDay: 'evening' },
 ];
 
 let selectedChores = []; // indices or custom objects
@@ -376,10 +376,10 @@ function getSelectedChoreList() {
   let order = 1;
   selectedChores.forEach(i => {
     const c = CHORE_CATALOG[i];
-    result.push({ title: c.title, subtitle: c.subtitle, icon: c.icon, xp: 10, order: order++, active: true });
+    result.push({ title: c.title, subtitle: c.subtitle, icon: c.icon, timeOfDay: c.timeOfDay || 'morning', xp: 10, order: order++, active: true });
   });
   customChores.forEach(c => {
-    result.push({ title: c.title, subtitle: c.subtitle, icon: c.icon, xp: 10, order: order++, active: true });
+    result.push({ title: c.title, subtitle: c.subtitle, icon: c.icon, timeOfDay: 'morning', xp: 10, order: order++, active: true });
   });
   return result;
 }

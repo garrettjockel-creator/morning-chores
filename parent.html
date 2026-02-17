@@ -304,6 +304,14 @@
         <input id="cfIcon" placeholder="e.g. 🛏️" maxlength="4">
       </div>
       <div class="form-group">
+        <label>Time of Day</label>
+        <select id="cfTime">
+          <option value="morning">Morning</option>
+          <option value="afternoon">Afternoon</option>
+          <option value="evening">Evening</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>XP Value</label>
         <input id="cfXP" type="number" value="10" min="1" max="100">
       </div>
@@ -597,7 +605,7 @@ function renderChoreManager() {
     '<div class="chore-row">' +
     '<div class="chore-row-icon">' + (c.icon || '📋') + '</div>' +
     '<div class="chore-row-info"><div class="chore-row-title">' + c.title + '</div>' +
-    '<div class="chore-row-sub">' + (c.subtitle || '') + ' &middot; ' + (c.xp||10) + ' XP</div></div>' +
+    '<div class="chore-row-sub">' + (c.subtitle || '') + ' &middot; ' + (c.timeOfDay || 'morning') + ' &middot; ' + (c.xp||10) + ' XP</div></div>' +
     '<div class="chore-row-actions">' +
     '<button class="btn-sm btn-edit" onclick="editChore(\'' + c.id + '\')">Edit</button>' +
     '<button class="btn-sm btn-del" onclick="deleteChore(\'' + c.id + '\')">Del</button>' +
@@ -633,12 +641,14 @@ function openChoreForm(editId) {
     document.getElementById('cfTitle').value = c.title || '';
     document.getElementById('cfSub').value = c.subtitle || '';
     document.getElementById('cfIcon').value = c.icon || '';
+    document.getElementById('cfTime').value = c.timeOfDay || 'morning';
     document.getElementById('cfXP').value = c.xp || 10;
   } else {
     document.getElementById('choreFormTitle').textContent = 'Add Chore';
     document.getElementById('cfTitle').value = '';
     document.getElementById('cfSub').value = '';
     document.getElementById('cfIcon').value = '';
+    document.getElementById('cfTime').value = 'morning';
     document.getElementById('cfXP').value = 10;
   }
   document.getElementById('choreFormOverlay').classList.add('visible');
@@ -654,6 +664,7 @@ async function saveChore() {
     title: document.getElementById('cfTitle').value.trim(),
     subtitle: document.getElementById('cfSub').value.trim(),
     icon: document.getElementById('cfIcon').value.trim() || '📋',
+    timeOfDay: document.getElementById('cfTime').value || 'morning',
     xp: parseInt(document.getElementById('cfXP').value) || 10,
     active: true,
   };

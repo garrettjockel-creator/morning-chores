@@ -62,7 +62,7 @@
     }
     .xp-fill {
       height: 100%;
-      background: var(--gold);
+      background: linear-gradient(90deg, var(--green), #059669);
       border-radius: 4px;
       transition: width 0.5s ease;
       width: 0%;
@@ -119,6 +119,12 @@
       margin-bottom: 14px;
       font-weight: 600;
     }
+    .chore-section-header {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: rgba(255,255,255,0.7);
+      margin: 16px 0 8px; padding-left: 4px;
+    }
+    .chore-section-header:first-child { margin-top: 0; }
     .chore-card {
       background: white;
       border-radius: 16px;
@@ -189,6 +195,17 @@
     .all-done-banner.visible { display: block; }
     .all-done-trophy { font-size: 52px; }
     .all-done-msg { font-size: 20px; font-weight: 800; color: var(--green-dark); margin-top: 4px; }
+
+    /* Kid Goals */
+    .kid-goal-card {
+      background: white; border-radius: 14px; padding: 14px 16px;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .kid-goal-card.completed { opacity: 0.6; }
+    .kid-goal-icon { font-size: 24px; flex-shrink: 0; }
+    .kid-goal-text { flex: 1; font-size: 15px; font-weight: 600; color: #333; }
+    .kid-goal-card.completed .kid-goal-text { text-decoration: line-through; color: #999; }
     .all-done-sub { font-size: 13px; color: #888; margin-top: 4px; }
 
     /* ===== REWARDS TAB ===== */
@@ -602,8 +619,8 @@
         </div>
       </div>
       <div class="top-xp">
-        <div class="xp-bar"><div class="xp-fill" id="xpFill"></div></div>
-        <span class="xp-text" id="xpText">0 / 50 XP</span>
+        <div class="xp-bar"><div class="xp-fill" id="topProgressFill"></div></div>
+        <span class="xp-text" id="topProgressText">0% done today</span>
       </div>
       <div class="top-streak">
         <span class="streak-fire">🔥</span>
@@ -628,6 +645,10 @@
           <div class="all-done-trophy">🏆</div>
           <div class="all-done-msg">All Chores Done!</div>
           <div class="all-done-sub">Great job today! You're a champion!</div>
+        </div>
+        <div id="goalsSection" style="display:none;">
+          <div class="chore-section-header">🎯 My Goals</div>
+          <div id="kidGoalsList"></div>
         </div>
       </div>
 
@@ -1054,6 +1075,10 @@ async function loadChores() {
 async function loadToday() {
   const doc = await familyRef.collection('completions').doc(getToday()).get();
   if (doc.exists) todayDoc = { done: [], xpAwarded: [], allDoneBonus: false, ...doc.data() };
+  // Clean stale chore IDs that no longer exist
+  const validIds = chores.map(c => c.id);
+  todayDoc.done = todayDoc.done.filter(id => validIds.includes(id));
+  todayDoc.xpAwarded = todayDoc.xpAwarded.filter(id => validIds.includes(id));
 }
 
 async function saveProfile() { await familyRef.collection('profile').doc('main').set(profile); }
@@ -1243,8 +1268,11 @@ function updateTopBar() {
   document.getElementById('childName').textContent = familyData.childName || 'Buddy';
   document.getElementById('levelBadge').textContent = 'Lv.' + info.level;
   document.getElementById('levelTitle').textContent = info.title;
-  document.getElementById('xpFill').style.width = (info.progress * 100) + '%';
-  document.getElementById('xpText').textContent = info.isMax ? 'MAX LEVEL!' : info.inLvl + ' / ' + info.need + ' XP';
+  // Top bar shows daily % complete
+  const done = todayDoc.done.length, total = chores.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('topProgressFill').style.width = pct + '%';
+  document.getElementById('topProgressText').textContent = pct + '% done today';
   document.getElementById('streakCount').textContent = profile.streak;
   document.getElementById('parentLink').href = 'parent.html?f=' + familyId;
 }
@@ -1252,20 +1280,38 @@ function updateTopBar() {
 function renderChores() {
   const list = document.getElementById('choreList');
   list.innerHTML = '';
-  chores.forEach(c => {
-    const done = todayDoc.done.includes(c.id);
-    const div = document.createElement('div');
-    div.className = 'chore-card' + (done ? ' done' : '');
-    div.id = 'chore-' + c.id;
-    div.onclick = () => toggleChore(c.id);
-    div.innerHTML =
-      '<div class="chore-check"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div>' +
-      '<div class="chore-info"><div class="chore-title-text">' + c.title + '</div>' +
-      '<div class="chore-subtitle-text">' + (c.subtitle || '') + '</div></div>' +
-      '<button class="speak-btn" onclick="event.stopPropagation();speak(\'' + c.title.replace(/'/g, "\\'") + '. ' + (c.subtitle || '').replace(/'/g, "\\'") + '\', this)">🔊</button>' +
-      '<div class="chore-icon-display">' + c.icon + '</div>' +
-      '<div class="chore-xp">+' + (c.xp || 10) + ' XP</div>';
-    list.appendChild(div);
+  const TIME_GROUPS = [
+    { key: 'morning', label: '🌅 Morning', emoji: '🌅' },
+    { key: 'afternoon', label: '☀️ Afternoon', emoji: '☀️' },
+    { key: 'evening', label: '🌙 Evening', emoji: '🌙' },
+  ];
+  // Check if any chores have timeOfDay set
+  const hasGroups = chores.some(c => c.timeOfDay && c.timeOfDay !== 'morning');
+  TIME_GROUPS.forEach(group => {
+    const groupChores = chores.filter(c => (c.timeOfDay || 'morning') === group.key);
+    if (groupChores.length === 0) return;
+    // Show section header if there are multiple groups
+    if (hasGroups || chores.some(c => c.timeOfDay)) {
+      const header = document.createElement('div');
+      header.className = 'chore-section-header';
+      header.textContent = group.label;
+      list.appendChild(header);
+    }
+    groupChores.forEach(c => {
+      const done = todayDoc.done.includes(c.id);
+      const div = document.createElement('div');
+      div.className = 'chore-card' + (done ? ' done' : '');
+      div.id = 'chore-' + c.id;
+      div.onclick = () => toggleChore(c.id);
+      div.innerHTML =
+        '<div class="chore-check"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></div>' +
+        '<div class="chore-info"><div class="chore-title-text">' + c.title + '</div>' +
+        '<div class="chore-subtitle-text">' + (c.subtitle || '') + '</div></div>' +
+        '<button class="speak-btn" onclick="event.stopPropagation();speak(\'' + c.title.replace(/'/g, "\\'") + '. ' + (c.subtitle || '').replace(/'/g, "\\'") + '\', this)">🔊</button>' +
+        '<div class="chore-icon-display">' + c.icon + '</div>' +
+        '<div class="chore-xp">+' + (c.xp || 10) + ' XP</div>';
+      list.appendChild(div);
+    });
   });
 }
 
@@ -1277,6 +1323,31 @@ function updateProgress() {
   const banner = document.getElementById('allDoneBanner');
   if (done >= total && total > 0) banner.classList.add('visible');
   else banner.classList.remove('visible');
+}
+
+// ===== GOALS (KID SIDE) =====
+let kidGoals = [];
+
+async function loadGoals() {
+  try {
+    const snap = await familyRef.collection('goals').orderBy('createdAt', 'desc').get();
+    kidGoals = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { kidGoals = []; }
+}
+
+function renderKidGoals() {
+  const section = document.getElementById('goalsSection');
+  const list = document.getElementById('kidGoalsList');
+  if (!kidGoals || kidGoals.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  list.innerHTML = kidGoals.map(g =>
+    '<div class="kid-goal-card' + (g.completed ? ' completed' : '') + '">' +
+    '<div class="kid-goal-icon">' + (g.completed ? '✅' : '🎯') + '</div>' +
+    '<div class="kid-goal-text">' + g.text + '</div></div>'
+  ).join('');
 }
 
 let pendingReward = null;
@@ -1777,6 +1848,7 @@ function showApp() {
   updateTopBar();
   renderChores();
   updateProgress();
+  renderKidGoals();
   renderRewards();
   renderChat();
   renderActivities();
@@ -1792,7 +1864,7 @@ async function init() {
     await initFirebase();
     await loadFamilyData();
     await Promise.all([loadProfile(), loadChores()]);
-    await loadToday();
+    await Promise.all([loadToday(), loadGoals()]);
     checkStreakOnLoad();
 
     // Apply saved theme (or default)
