@@ -592,6 +592,21 @@
     .reflect-text-input::placeholder { color: rgba(255,255,255,0.5); }
     .reflect-skip { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; margin-top: 12px; }
 
+    /* ===== JOURNAL CARD ===== */
+    .journal-card {
+      display: flex; align-items: center; gap: 12px;
+      background: #f0f0ff; border: 2px solid #e0e0f0;
+      border-radius: 14px; padding: 14px 16px; margin-top: 16px;
+      cursor: pointer; transition: transform 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .journal-card:active { transform: scale(0.97); }
+    .journal-card-icon { font-size: 28px; flex-shrink: 0; }
+    .journal-card-body { flex: 1; min-width: 0; }
+    .journal-card-title { font-size: 15px; font-weight: 700; color: #333; }
+    .journal-card-sub { font-size: 12px; color: #888; margin-top: 2px; }
+    .journal-card-arrow { font-size: 22px; color: #bbb; font-weight: 300; flex-shrink: 0; }
+
     /* ===== STREAK CELEBRATION ===== */
     #streakCelebration {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -781,6 +796,14 @@
         <div id="goalsSection" style="display:none;">
           <div class="chore-section-header">🎯 My Goals</div>
           <div id="kidGoalsList"></div>
+        </div>
+        <div class="journal-card" id="journalCard" onclick="openJournal()">
+          <div class="journal-card-icon">📓</div>
+          <div class="journal-card-body">
+            <div class="journal-card-title">My Journal</div>
+            <div class="journal-card-sub" id="journalCardSub">Tap to add today's reflections</div>
+          </div>
+          <div class="journal-card-arrow">›</div>
         </div>
       </div>
 
@@ -1534,9 +1557,35 @@ async function checkReflectionDone() {
   } catch (e) { return false; }
 }
 
+let reflectIsJournalMode = false;
+
 function showReflection() {
   reflectSlide = 0;
+  reflectIsJournalMode = false;
   reflectAnswers = { highlight: null, practice: null, trophy: null };
+  document.getElementById('reflectionOverlay').classList.add('visible');
+  renderReflectSlide();
+}
+
+async function openJournal() {
+  // Load existing answers for today so the kid can see/edit them
+  try {
+    const doc = await familyRef.collection('reflections').doc(getToday()).get();
+    if (doc.exists) {
+      const data = doc.data();
+      reflectAnswers = {
+        highlight: data.highlight || null,
+        practice: data.practice || null,
+        trophy: data.trophy || null,
+      };
+    } else {
+      reflectAnswers = { highlight: null, practice: null, trophy: null };
+    }
+  } catch (e) {
+    reflectAnswers = { highlight: null, practice: null, trophy: null };
+  }
+  reflectIsJournalMode = true;
+  reflectSlide = 1; // skip summary, go straight to first question
   document.getElementById('reflectionOverlay').classList.add('visible');
   renderReflectSlide();
 }
@@ -1549,9 +1598,17 @@ function renderReflectSlide() {
 
   const isQuestion = reflectSlide > 0;
   document.getElementById('reflectInputArea').style.display = isQuestion ? 'block' : 'none';
-  document.getElementById('reflectAnswer').textContent = '';
-  document.getElementById('reflectAnswer').classList.remove('has-text');
-  document.getElementById('reflectTextInput').value = '';
+
+  // Pre-fill existing answer if available
+  var existingAnswer = isQuestion ? (reflectAnswers[slide.key] || '') : '';
+  document.getElementById('reflectAnswer').textContent = existingAnswer;
+  if (existingAnswer) {
+    document.getElementById('reflectAnswer').classList.add('has-text');
+  } else {
+    document.getElementById('reflectAnswer').classList.remove('has-text');
+  }
+  document.getElementById('reflectTextInput').value = existingAnswer;
+
   document.getElementById('reflectNextBtn').textContent = reflectSlide === REFLECT_SLIDES.length - 1 ? 'Finish' : 'Next';
   document.getElementById('reflectSkipBtn').textContent = reflectSlide === 0 ? 'Skip All' : 'Skip';
 
@@ -1635,7 +1692,11 @@ async function nextReflectSlide() {
   if (reflectSlide >= REFLECT_SLIDES.length) {
     await saveReflection(false);
     document.getElementById('reflectionOverlay').classList.remove('visible');
-    showApp();
+    if (reflectIsJournalMode) {
+      updateJournalCard();
+    } else {
+      showApp();
+    }
     return;
   }
   renderReflectSlide();
@@ -1650,6 +1711,9 @@ async function skipReflection() {
     await saveReflection(true);
     document.getElementById('reflectionOverlay').classList.remove('visible');
     showApp();
+  } else if (reflectIsJournalMode && reflectSlide === 1) {
+    // Close journal without saving
+    document.getElementById('reflectionOverlay').classList.remove('visible');
   } else {
     // Skip this question
     nextReflectSlide();
@@ -1666,6 +1730,21 @@ async function saveReflection(skipped) {
       completedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch (e) { console.error('Save reflection failed:', e); }
+}
+
+async function updateJournalCard() {
+  var sub = document.getElementById('journalCardSub');
+  if (!sub) return;
+  try {
+    var doc = await familyRef.collection('reflections').doc(getToday()).get();
+    if (doc.exists && !doc.data().skipped) {
+      var d = doc.data();
+      var filled = [d.highlight, d.practice, d.trophy].filter(Boolean).length;
+      sub.textContent = filled === 3 ? 'All done! Tap to update' : filled + ' of 3 answered — tap to finish';
+    } else {
+      sub.textContent = 'Tap to add today\'s reflections';
+    }
+  } catch (e) {}
 }
 
 // ===== STREAK =====
@@ -2364,6 +2443,7 @@ function showApp() {
   renderRewards();
   renderChat();
   renderActivities();
+  updateJournalCard();
 
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';

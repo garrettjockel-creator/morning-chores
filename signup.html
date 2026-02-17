@@ -176,6 +176,29 @@
     .custom-cancel-btn { background: #e5e7eb; color: #666; }
     .custom-add-btn { background: var(--primary); color: white; }
 
+    /* Reward Editor */
+    .reward-editor-section { margin-top: 8px; }
+    .reward-edit-card {
+      display: flex; align-items: center; gap: 8px;
+      background: #f9fafb; border: 2px solid #e5e7eb;
+      border-radius: 12px; padding: 10px; margin-bottom: 8px;
+    }
+    .reward-edit-card input {
+      border: 2px solid #e5e7eb; border-radius: 8px;
+      font-size: 14px; outline: none; padding: 8px;
+      -webkit-appearance: none;
+    }
+    .reward-edit-card input:focus { border-color: var(--primary); }
+    .reward-edit-card .reward-emoji-input { width: 44px; text-align: center; font-size: 18px; }
+    .reward-edit-card .reward-name-input { flex: 1; min-width: 0; }
+    .reward-edit-card .reward-cost-input { width: 60px; text-align: center; }
+    .reward-delete-btn {
+      background: none; border: none; font-size: 18px;
+      color: #ccc; cursor: pointer; padding: 4px;
+      flex-shrink: 0;
+    }
+    .reward-delete-btn:active { color: var(--red); }
+
     .back-link {
       margin-top: 20px; font-size: 14px; opacity: 0.7;
     }
@@ -263,6 +286,14 @@
             <button class="custom-add-btn" onclick="addCustomChore()">Add</button>
           </div>
         </div>
+      </div>
+
+      <!-- Reward Editor -->
+      <div class="form-divider">Set Up Rewards</div>
+      <div class="reward-editor-section">
+        <div class="chore-picker-sub">Your kid earns points for chores. Customize what they can redeem!</div>
+        <div id="rewardEditorList"></div>
+        <button class="add-custom-btn" onclick="addRewardRow()">+ Add Reward</button>
       </div>
 
       <button class="submit-btn" id="submitBtn" onclick="submitSignup()">Create Account</button>
@@ -355,6 +386,51 @@ const CHORE_CATALOG = [
 let selectedChores = []; // indices or custom objects
 let customChores = [];
 
+let signupRewards = [
+  { emoji: '💵', name: '$20 Reward', cost: 500 },
+  { emoji: '💰', name: '$50 Reward', cost: 1000 },
+  { emoji: '🤑', name: '$200 Reward', cost: 2000 },
+];
+
+function renderRewardEditor() {
+  const list = document.getElementById('rewardEditorList');
+  let html = '';
+  signupRewards.forEach((r, i) => {
+    html += '<div class="reward-edit-card">' +
+      '<input class="reward-emoji-input" data-idx="' + i + '" data-field="emoji" value="' + r.emoji + '" maxlength="4">' +
+      '<input class="reward-name-input" data-idx="' + i + '" data-field="name" value="' + r.name.replace(/"/g, '&quot;') + '" placeholder="Reward name">' +
+      '<input class="reward-cost-input" type="number" data-idx="' + i + '" data-field="cost" value="' + r.cost + '" placeholder="Pts">' +
+      '<button class="reward-delete-btn" onclick="deleteRewardRow(' + i + ')">✕</button>' +
+      '</div>';
+  });
+  list.innerHTML = html;
+}
+
+function addRewardRow() {
+  syncRewardInputs();
+  signupRewards.push({ emoji: '🎁', name: '', cost: 100 });
+  renderRewardEditor();
+}
+
+function deleteRewardRow(index) {
+  syncRewardInputs();
+  signupRewards.splice(index, 1);
+  renderRewardEditor();
+}
+
+function syncRewardInputs() {
+  document.querySelectorAll('.reward-edit-card').forEach(card => {
+    const inputs = card.querySelectorAll('input');
+    inputs.forEach(inp => {
+      const idx = parseInt(inp.dataset.idx);
+      const field = inp.dataset.field;
+      if (signupRewards[idx]) {
+        signupRewards[idx][field] = field === 'cost' ? parseInt(inp.value) || 0 : inp.value;
+      }
+    });
+  });
+}
+
 function renderChorePicker() {
   const grid = document.getElementById('chorePickerGrid');
   let html = '';
@@ -417,6 +493,7 @@ function getSelectedChoreList() {
 
 // Render on load
 renderChorePicker();
+renderRewardEditor();
 
 let pinBuffer = '';
 let pinFirst = '';
@@ -548,6 +625,20 @@ async function submitSignup() {
       batch.set(familyRef.collection('chores').doc(), c);
     });
     await batch.commit();
+
+    // Save rewards
+    syncRewardInputs();
+    const rewardBatch = db.batch();
+    signupRewards
+      .filter(r => r.name.trim() !== '')
+      .forEach(r => {
+        rewardBatch.set(familyRef.collection('rewards').doc(), {
+          emoji: r.emoji,
+          name: r.name.trim(),
+          cost: r.cost,
+        });
+      });
+    await rewardBatch.commit();
 
     // Store familyId
     localStorage.setItem('familyId', familyId);
