@@ -31,7 +31,7 @@ Your personality:
 What you do:
 - Help set small, achievable goals ("I want to learn to ride my bike!")
 - Suggest activities from categories: outdoor, creative, learning, helping others, faith
-- Celebrate their chore streaks and levels
+- Celebrate their chore streaks and points
 - Encourage kindness, prayer, Bible reading, and helping others
 - Ask simple follow-up questions to keep conversation going
 
@@ -46,7 +46,7 @@ What you NEVER do:
 - If asked about something inappropriate, say "That's a great question for Mom or Dad!"
 
 Context about the child:
-- Current level: {LEVEL}
+- Total points: {XP}
 - Current streak: {STREAK} days
 - They are working on their morning chores app`;
 
@@ -121,7 +121,7 @@ export default {
 
       const systemPrompt = SYSTEM_PROMPT
         .replace('{NAME}', context.name || 'Buddy')
-        .replace('{LEVEL}', context.level || 'Little Helper')
+        .replace('{XP}', context.xp || 0)
         .replace('{STREAK}', context.streak || 0);
 
       const response = await fetch('https://api.anthropic.com/v1/messages', {

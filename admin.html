@@ -162,14 +162,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-const LEVELS = [
-  { level: 1,  xp: 0 },    { level: 2,  xp: 50 },
-  { level: 3,  xp: 150 },   { level: 4,  xp: 300 },
-  { level: 5,  xp: 500 },   { level: 6,  xp: 750 },
-  { level: 7,  xp: 1050 },  { level: 8,  xp: 1400 },
-  { level: 9,  xp: 1800 },  { level: 10, xp: 2300 },
-];
-
 // SHA-256 hash of "0000"
 const ADMIN_PIN_HASH = '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0';
 
@@ -227,14 +219,6 @@ function showDashboard() {
   loadAllFamilies();
 }
 
-function getLevelFromXP(xp) {
-  let lvl = 1;
-  for (let i = LEVELS.length - 1; i >= 0; i--) {
-    if (xp >= LEVELS[i].xp) { lvl = LEVELS[i].level; break; }
-  }
-  return lvl;
-}
-
 async function loadAllFamilies() {
   const container = document.getElementById('familiesContainer');
   const snap = await db.collection('families').get();
@@ -287,7 +271,6 @@ function renderFamilyCard(fid, fam, profile, chores, doneToday) {
 
   const xp = profile.xp || 0;
   const streak = profile.streak || 0;
-  const level = getLevelFromXP(xp);
   const doneCount = doneToday.length;
   const totalCount = chores.length;
 
@@ -316,7 +299,6 @@ function renderFamilyCard(fid, fam, profile, chores, doneToday) {
     '<div class="family-stats">' +
       '<div class="family-stat-box"><div class="family-stat-val">' + streak + '</div><div class="family-stat-label">Streak</div></div>' +
       '<div class="family-stat-box"><div class="family-stat-val">' + xp + '</div><div class="family-stat-label">Total XP</div></div>' +
-      '<div class="family-stat-box"><div class="family-stat-val">' + level + '</div><div class="family-stat-label">Level</div></div>' +
       '<div class="family-stat-box"><div class="family-stat-val">' + doneCount + '/' + totalCount + '</div><div class="family-stat-label">Today</div></div>' +
     '</div>' +
 

@@ -228,10 +228,6 @@
           <div class="stat-label">Total XP</div>
         </div>
         <div class="stat-box">
-          <div class="stat-val" id="statLevel">1</div>
-          <div class="stat-label">Level</div>
-        </div>
-        <div class="stat-box">
           <div class="stat-val" id="stat7Day">0%</div>
           <div class="stat-label">7-Day</div>
         </div>
@@ -647,16 +643,8 @@ async function loadDashData() {
 }
 
 function renderStats(completions, days) {
-  const LEVELS = [
-    { level:1,xp:0 },{level:2,xp:50},{level:3,xp:150},{level:4,xp:300},{level:5,xp:500},
-    {level:6,xp:750},{level:7,xp:1050},{level:8,xp:1400},{level:9,xp:1800},{level:10,xp:2300},
-  ];
-  let lvl = 1;
-  for (let i = LEVELS.length-1; i >= 0; i--) { if ((profile.xp||0) >= LEVELS[i].xp) { lvl = LEVELS[i].level; break; } }
-
   document.getElementById('statStreak').textContent = profile.streak || 0;
   document.getElementById('statXP').textContent = profile.xp || 0;
-  document.getElementById('statLevel').textContent = lvl;
 
   const last7 = days.slice(-7);
   let totalPct = 0, counted = 0;
