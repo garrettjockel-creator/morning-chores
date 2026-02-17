@@ -293,6 +293,14 @@
         <input class="setting-input" id="settingXP" type="number" value="10" min="1" max="100">
       </div>
       <div class="setting-row">
+        <span class="setting-label">Silly Voice Mode 🎭</span>
+        <input type="checkbox" id="settingSillyVoice" style="width:20px;height:20px;">
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Victory Song (YouTube URL) 🎵</span>
+        <input class="setting-input" id="settingVictorySong" placeholder="https://youtube.com/watch?v=...">
+      </div>
+      <div class="setting-row">
         <span class="setting-label">Change PIN</span>
         <input class="setting-input" id="settingPIN" type="password" placeholder="New 4-digit PIN" maxlength="4">
       </div>
@@ -721,6 +729,8 @@ function renderGoals(goals) {
 function populateSettings() {
   document.getElementById('settingName').value = familyData.childName || '';
   document.getElementById('settingXP').value = familyData.xpPerChore || 10;
+  document.getElementById('settingSillyVoice').checked = !!familyData.sillyVoiceEnabled;
+  document.getElementById('settingVictorySong').value = familyData.victorySongUrl || '';
 }
 
 // ===== CHORE CRUD =====
@@ -933,6 +943,8 @@ async function saveSettings() {
   const updates = {
     childName: document.getElementById('settingName').value.trim(),
     xpPerChore: parseInt(document.getElementById('settingXP').value) || 10,
+    sillyVoiceEnabled: document.getElementById('settingSillyVoice').checked,
+    victorySongUrl: document.getElementById('settingVictorySong').value.trim(),
   };
   const newPin = document.getElementById('settingPIN').value.trim();
   if (newPin && newPin.length === 4) {

@@ -544,6 +544,79 @@
     .vote-btn.active { opacity: 1; border-color: rgba(255,255,255,0.5); }
     .vote-btn:active { transform: scale(0.9); }
 
+    /* ===== REFLECTION OVERLAY ===== */
+    #reflectionOverlay {
+      position: fixed; inset: 0; z-index: 1500;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark, #1a1a2e));
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px 24px; text-align: center; color: white;
+      animation: fadeIn 0.4s ease;
+    }
+    #reflectionOverlay.visible { display: flex; }
+    .reflect-input-area { width: 100%; max-width: 340px; margin-top: 20px; }
+    .reflect-answer {
+      min-height: 48px; padding: 12px 16px; margin-bottom: 12px;
+      background: rgba(255,255,255,0.15); border-radius: 14px;
+      font-size: 17px; color: white; line-height: 1.4; word-wrap: break-word;
+    }
+    .reflect-answer.has-text { background: rgba(255,255,255,0.25); }
+    .reflect-mic {
+      width: 64px; height: 64px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,0.2); font-size: 28px; cursor: pointer;
+      transition: all 0.2s; margin-bottom: 12px;
+    }
+    .reflect-mic.listening { background: #4CAF50; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(76,175,80,0.5); } 50% { box-shadow: 0 0 0 14px rgba(76,175,80,0); } }
+    .reflect-text-input {
+      width: 100%; max-width: 340px; padding: 12px 16px;
+      border: 2px solid rgba(255,255,255,0.3); border-radius: 14px;
+      background: rgba(255,255,255,0.1); color: white; font-size: 16px;
+      outline: none;
+    }
+    .reflect-text-input::placeholder { color: rgba(255,255,255,0.5); }
+    .reflect-skip { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; margin-top: 12px; }
+
+    /* ===== STREAK CELEBRATION ===== */
+    #streakCelebration {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 1600; display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #f093fb 50%, #f5576c 100%);
+      color: white; text-align: center; padding: 32px;
+      animation: fadeIn 0.4s ease;
+    }
+    #streakCelebration.visible { display: flex; }
+    .streak-cel-emoji { font-size: 80px; animation: pop 0.6s ease; }
+    .streak-cel-title { font-size: 32px; font-weight: 900; margin-top: 12px; text-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .streak-cel-msg { font-size: 18px; margin-top: 8px; opacity: 0.95; }
+    .streak-cel-dismiss {
+      margin-top: 24px; padding: 12px 32px; border: none; border-radius: 30px;
+      background: rgba(255,255,255,0.25); color: white; font-size: 16px;
+      font-weight: 700; cursor: pointer;
+    }
+
+    /* ===== VICTORY SONG MODAL ===== */
+    #victorySongModal {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 1700; display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85); padding: 20px;
+      animation: fadeIn 0.3s ease;
+    }
+    #victorySongModal.visible { display: flex; }
+    .victory-modal-content {
+      background: white; border-radius: 20px; padding: 24px; width: 100%;
+      max-width: 420px; text-align: center;
+    }
+    .victory-modal-title { font-size: 22px; font-weight: 800; margin-bottom: 14px; }
+    .victory-iframe {
+      width: 100%; aspect-ratio: 16/9; border: none; border-radius: 12px;
+    }
+    .victory-close {
+      margin-top: 16px; padding: 10px 28px; border: none; border-radius: 20px;
+      background: var(--primary); color: white; font-size: 15px;
+      font-weight: 700; cursor: pointer;
+    }
+
     /* Parent pill button */
     .parent-pill {
       background: white; color: var(--primary);
@@ -614,6 +687,38 @@
     <div class="theme-picker-wrap" id="themePickerWrap" style="display:none;"></div>
     <button class="onboard-btn" id="onboardBtn" onclick="nextOnboardSlide()">Next</button>
     <div class="onboard-dots" id="onboardDots"></div>
+  </div>
+
+  <!-- Reflection Overlay -->
+  <div id="reflectionOverlay">
+    <div class="onboard-emoji" id="reflectEmoji"></div>
+    <div class="onboard-title" id="reflectTitle"></div>
+    <div class="onboard-text" id="reflectText"></div>
+    <div class="reflect-input-area" id="reflectInputArea" style="display:none;">
+      <div class="reflect-answer" id="reflectAnswer"></div>
+      <button class="reflect-mic" id="reflectMicBtn" onclick="reflectStartListening()">&#127908;</button>
+      <input class="reflect-text-input" id="reflectTextInput" placeholder="Or type your answer..." onkeydown="if(event.key==='Enter')reflectSubmitTyped()">
+    </div>
+    <button class="onboard-btn" id="reflectNextBtn" onclick="nextReflectSlide()">Next</button>
+    <button class="reflect-skip" id="reflectSkipBtn" onclick="skipReflection()">Skip</button>
+    <div class="onboard-dots" id="reflectDots"></div>
+  </div>
+
+  <!-- Streak Celebration Overlay -->
+  <div id="streakCelebration">
+    <div class="streak-cel-emoji" id="streakCelEmoji"></div>
+    <div class="streak-cel-title" id="streakCelTitle"></div>
+    <div class="streak-cel-msg" id="streakCelMsg"></div>
+    <button class="streak-cel-dismiss" onclick="dismissStreakCelebration()">Awesome!</button>
+  </div>
+
+  <!-- Victory Song Modal -->
+  <div id="victorySongModal">
+    <div class="victory-modal-content">
+      <div class="victory-modal-title">🎵 Victory Song! 🎵</div>
+      <div id="victorySongContainer"></div>
+      <button class="victory-close" onclick="closeVictorySong()">Close</button>
+    </div>
   </div>
 
   <!-- App -->
@@ -1005,6 +1110,12 @@ function speak(text, btn, callback) {
   stopSpeaking();
   if (!text) { if (callback) callback(); return; }
 
+  // Silly voice mode — use browser TTS with character voices
+  if (familyData && familyData.sillyVoiceEnabled) {
+    speakSilly(text, btn, callback);
+    return;
+  }
+
   onSpeakDone = callback || null;
   isSpeaking = true;
 
@@ -1056,6 +1167,139 @@ function speakBrowser(text, btn, callback) {
     if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
   };
   window.speechSynthesis.speak(utter);
+}
+
+// ===== SILLY VOICE CHARACTERS =====
+const SILLY_CHARACTERS = [
+  {
+    name: 'Pirate', pitch: 0.7, rate: 0.9,
+    transform: t => 'Arrr! ' + t.replace(/\byou\b/gi, 'ye').replace(/\bmy\b/gi, 'me').replace(/\bis\b/gi, 'be') + ' Yo ho ho!'
+  },
+  {
+    name: 'Robot', pitch: 0.5, rate: 0.8,
+    transform: t => 'BEEP BOOP. ' + t.toUpperCase() + '. END TRANSMISSION.'
+  },
+  {
+    name: 'Superhero', pitch: 1.1, rate: 1.05,
+    transform: t => 'In a world of chores... ' + t + ' ...because YOU are a HERO!'
+  },
+  {
+    name: 'Chipmunk', pitch: 1.8, rate: 1.4,
+    transform: t => 'Oh oh oh! ' + t + ' Hee hee hee!'
+  },
+  {
+    name: 'Cowboy', pitch: 0.85, rate: 0.85,
+    transform: t => 'Howdy partner! ' + t.replace(/\bhey\b/gi, 'howdy').replace(/\bgreat\b/gi, 'rootin tootin great') + ' Yeehaw!'
+  }
+];
+
+function speakSilly(text, btn, callback) {
+  stopSpeaking();
+  if (!text) { if (callback) callback(); return; }
+  const char = SILLY_CHARACTERS[Math.floor(Math.random() * SILLY_CHARACTERS.length)];
+  const transformed = char.transform(text);
+  onSpeakDone = callback || null;
+  isSpeaking = true;
+  var utter = new SpeechSynthesisUtterance(transformed);
+  utter.rate = char.rate;
+  utter.pitch = char.pitch;
+  utter.lang = 'en-US';
+  if (btn) btn.classList.add('speaking');
+  utter.onend = function() {
+    if (btn) btn.classList.remove('speaking');
+    if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
+  };
+  utter.onerror = function() {
+    if (btn) btn.classList.remove('speaking');
+    if (onSpeakDone) { var cb = onSpeakDone; onSpeakDone = null; cb(); }
+  };
+  window.speechSynthesis.speak(utter);
+}
+
+// ===== SOUND EFFECTS =====
+var audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playTone(ctx, freq, startTime, duration, type, gain) {
+  var osc = ctx.createOscillator();
+  var g = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  g.gain.value = gain || 0.3;
+  g.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  osc.connect(g);
+  g.connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+
+function playSound(type) {
+  try {
+    var ctx = getAudioCtx();
+    var now = ctx.currentTime;
+    if (type === 'chore') {
+      playTone(ctx, 523, now, 0.12, 'sine', 0.25);        // C5
+      playTone(ctx, 659, now + 0.12, 0.15, 'sine', 0.25);  // E5
+    } else if (type === 'levelUp') {
+      playTone(ctx, 523, now, 0.1, 'triangle', 0.3);       // C5
+      playTone(ctx, 659, now + 0.1, 0.1, 'triangle', 0.3); // E5
+      playTone(ctx, 784, now + 0.2, 0.1, 'triangle', 0.3); // G5
+      playTone(ctx, 1047, now + 0.3, 0.25, 'triangle', 0.3); // C6
+    } else if (type === 'allDone') {
+      playTone(ctx, 523, now, 0.5, 'sine', 0.2);           // C
+      playTone(ctx, 659, now, 0.5, 'sine', 0.2);           // E
+      playTone(ctx, 784, now, 0.5, 'sine', 0.2);           // G
+      playTone(ctx, 1047, now + 0.3, 0.4, 'triangle', 0.25); // sweep
+    }
+  } catch(e) {}
+}
+
+// ===== STREAK CELEBRATIONS =====
+const STREAK_MILESTONES = {
+  3:  { emoji: '🎩', title: 'Hat Trick!', message: '3 days in a row! You\'re on fire!' },
+  7:  { emoji: '⚔️', title: 'One Week Warrior!', message: 'A whole week! Nothing can stop you!' },
+  14: { emoji: '🌟', title: 'Two Week Legend!', message: '14 days! You\'re becoming a legend!' },
+  30: { emoji: '👑', title: 'Monthly Master!', message: '30 DAYS! You are absolutely incredible!' },
+};
+
+function showStreakCelebration(streak) {
+  var ms = STREAK_MILESTONES[streak];
+  if (!ms) return;
+  document.getElementById('streakCelEmoji').textContent = ms.emoji;
+  document.getElementById('streakCelTitle').textContent = ms.title;
+  document.getElementById('streakCelMsg').textContent = ms.message;
+  document.getElementById('streakCelebration').classList.add('visible');
+  showConfetti();
+  speak(ms.title + ' ' + ms.message);
+  setTimeout(dismissStreakCelebration, 5000);
+}
+
+function dismissStreakCelebration() {
+  document.getElementById('streakCelebration').classList.remove('visible');
+}
+
+// ===== VICTORY SONG =====
+function extractYouTubeId(url) {
+  if (!url) return null;
+  var m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function showVictorySong() {
+  var url = familyData.victorySongUrl;
+  var vid = extractYouTubeId(url);
+  if (!vid) return;
+  var container = document.getElementById('victorySongContainer');
+  container.innerHTML = '<iframe class="victory-iframe" src="https://www.youtube.com/embed/' + vid + '?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
+  document.getElementById('victorySongModal').classList.add('visible');
+}
+
+function closeVictorySong() {
+  document.getElementById('victorySongModal').classList.remove('visible');
+  document.getElementById('victorySongContainer').innerHTML = '';
 }
 
 // ===== FIREBASE =====
@@ -1219,6 +1463,176 @@ async function nextOnboardSlide() {
   renderOnboardSlide();
 }
 
+// ===== DAILY REFLECTION =====
+const REFLECT_SLIDES = [
+  { key: 'summary', emoji: '&#9728;&#65039;', titleFn: () => 'Good morning, ' + (familyData.childName || 'Buddy') + '!',
+    textFn: () => {
+      const done = reflectYesterdayData ? reflectYesterdayData.done.length : 0;
+      const total = chores.length;
+      let msg = 'You finished ' + done + ' out of ' + total + ' chores yesterday!';
+      if (profile.streak > 0) msg += ' \uD83D\uDD25 ' + profile.streak + ' day streak!';
+      return msg;
+    }
+  },
+  { key: 'highlight', emoji: '&#127775;', title: 'What was the best part of your day?', text: 'Think about yesterday — what made you smile?' },
+  { key: 'practice', emoji: '&#128170;', title: "What's one thing you want to practice today?", text: 'Could be anything — reading, math, being kind...' },
+  { key: 'trophy', emoji: '&#127942;', title: 'What would you give yourself a trophy for?', text: "Something you're proud of from yesterday!" },
+];
+let reflectSlide = 0;
+let reflectAnswers = { highlight: null, practice: null, trophy: null };
+let reflectYesterdayData = null;
+let reflectRecognition = null;
+let reflectListening = false;
+
+async function loadYesterdayData() {
+  try {
+    const doc = await familyRef.collection('completions').doc(getYesterday()).get();
+    if (doc.exists) reflectYesterdayData = { done: [], ...doc.data() };
+    else reflectYesterdayData = { done: [] };
+  } catch (e) { reflectYesterdayData = { done: [] }; }
+}
+
+async function checkReflectionDone() {
+  try {
+    const doc = await familyRef.collection('reflections').doc(getToday()).get();
+    return doc.exists;
+  } catch (e) { return false; }
+}
+
+function showReflection() {
+  reflectSlide = 0;
+  reflectAnswers = { highlight: null, practice: null, trophy: null };
+  document.getElementById('reflectionOverlay').classList.add('visible');
+  renderReflectSlide();
+}
+
+function renderReflectSlide() {
+  const slide = REFLECT_SLIDES[reflectSlide];
+  document.getElementById('reflectEmoji').innerHTML = slide.emoji;
+  document.getElementById('reflectTitle').textContent = slide.titleFn ? slide.titleFn() : slide.title;
+  document.getElementById('reflectText').textContent = slide.textFn ? slide.textFn() : slide.text;
+
+  const isQuestion = reflectSlide > 0;
+  document.getElementById('reflectInputArea').style.display = isQuestion ? 'block' : 'none';
+  document.getElementById('reflectAnswer').textContent = '';
+  document.getElementById('reflectAnswer').classList.remove('has-text');
+  document.getElementById('reflectTextInput').value = '';
+  document.getElementById('reflectNextBtn').textContent = reflectSlide === REFLECT_SLIDES.length - 1 ? 'Finish' : 'Next';
+  document.getElementById('reflectSkipBtn').textContent = reflectSlide === 0 ? 'Skip All' : 'Skip';
+
+  // Dots
+  let dots = '';
+  for (let i = 0; i < REFLECT_SLIDES.length; i++) {
+    dots += '<div class="onboard-dot' + (i === reflectSlide ? ' active' : '') + '"></div>';
+  }
+  document.getElementById('reflectDots').innerHTML = dots;
+
+  // TTS
+  const speakText = slide.titleFn ? slide.titleFn() + ' ' + (slide.textFn ? slide.textFn() : '') : slide.title;
+  speak(speakText);
+}
+
+function reflectStartListening() {
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+  stopSpeaking();
+  if (reflectRecognition) { try { reflectRecognition.stop(); } catch(e) {} reflectRecognition = null; }
+
+  reflectRecognition = new SpeechRecognition();
+  reflectRecognition.lang = 'en-US';
+  reflectRecognition.interimResults = false;
+  reflectRecognition.maxAlternatives = 1;
+
+  var btn = document.getElementById('reflectMicBtn');
+
+  reflectRecognition.onstart = function() {
+    reflectListening = true;
+    if (btn) btn.classList.add('listening');
+  };
+
+  reflectRecognition.onresult = function(e) {
+    var transcript = e.results[0][0].transcript;
+    reflectListening = false;
+    if (btn) btn.classList.remove('listening');
+    try { reflectRecognition.stop(); } catch(ex) {}
+    reflectRecognition = null;
+    var key = REFLECT_SLIDES[reflectSlide].key;
+    if (key !== 'summary') reflectAnswers[key] = transcript;
+    document.getElementById('reflectAnswer').textContent = transcript;
+    document.getElementById('reflectAnswer').classList.add('has-text');
+    document.getElementById('reflectTextInput').value = transcript;
+  };
+
+  reflectRecognition.onerror = function(e) {
+    reflectListening = false;
+    if (btn) btn.classList.remove('listening');
+  };
+
+  reflectRecognition.onend = function() {
+    reflectListening = false;
+    if (btn) btn.classList.remove('listening');
+  };
+
+  try { reflectRecognition.start(); } catch(e) {}
+}
+
+function reflectSubmitTyped() {
+  var val = document.getElementById('reflectTextInput').value.trim();
+  if (!val) return;
+  var key = REFLECT_SLIDES[reflectSlide].key;
+  if (key !== 'summary') reflectAnswers[key] = val;
+  document.getElementById('reflectAnswer').textContent = val;
+  document.getElementById('reflectAnswer').classList.add('has-text');
+}
+
+async function nextReflectSlide() {
+  stopSpeaking();
+  if (reflectRecognition) { try { reflectRecognition.stop(); } catch(e) {} reflectRecognition = null; }
+
+  // Capture typed answer if not already captured via voice
+  var key = REFLECT_SLIDES[reflectSlide].key;
+  if (key !== 'summary' && !reflectAnswers[key]) {
+    var val = document.getElementById('reflectTextInput').value.trim();
+    if (val) reflectAnswers[key] = val;
+  }
+
+  reflectSlide++;
+  if (reflectSlide >= REFLECT_SLIDES.length) {
+    await saveReflection(false);
+    document.getElementById('reflectionOverlay').classList.remove('visible');
+    showApp();
+    return;
+  }
+  renderReflectSlide();
+}
+
+async function skipReflection() {
+  stopSpeaking();
+  if (reflectRecognition) { try { reflectRecognition.stop(); } catch(e) {} reflectRecognition = null; }
+
+  if (reflectSlide === 0) {
+    // Skip all
+    await saveReflection(true);
+    document.getElementById('reflectionOverlay').classList.remove('visible');
+    showApp();
+  } else {
+    // Skip this question
+    nextReflectSlide();
+  }
+}
+
+async function saveReflection(skipped) {
+  try {
+    await familyRef.collection('reflections').doc(getToday()).set({
+      highlight: reflectAnswers.highlight || null,
+      practice: reflectAnswers.practice || null,
+      trophy: reflectAnswers.trophy || null,
+      skipped: !!skipped,
+      completedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (e) { console.error('Save reflection failed:', e); }
+}
+
 // ===== STREAK =====
 function checkStreakOnLoad() {
   if (!profile.lastAllDoneDate) return;
@@ -1244,12 +1658,13 @@ async function toggleChore(choreId) {
       if (chore.specialTrack === 'bible') profile.bibleReadCount = (profile.bibleReadCount || 0) + 1;
       const newLvl = getLevelInfo(profile.xp).level;
       if (newLvl > oldLvl) {
-        setTimeout(() => showLevelUp(newLvl), 300);
+        setTimeout(() => { showLevelUp(newLvl); playSound('levelUp'); }, 300);
       } else {
         const li = getLevelInfo(profile.xp);
         speak('Plus ' + earned + ' points! You now have ' + li.inLvl + ' out of ' + li.need + ' points to reach level ' + (li.level + 1) + '!');
       }
       showStickerPop(choreId);
+      playSound('chore');
     }
     if (todayDoc.done.length >= chores.length && !todayDoc.allDoneBonus) {
       todayDoc.allDoneBonus = true;
@@ -1262,7 +1677,16 @@ async function toggleChore(choreId) {
       setTimeout(() => {
         const li = getLevelInfo(profile.xp);
         showConfetti();
+        playSound('allDone');
         speak('All chores done! Bonus 25 points! You now have ' + li.inLvl + ' out of ' + li.need + ' points to reach level ' + (li.level + 1) + '! Great job today!');
+        // Streak milestone celebration
+        if (STREAK_MILESTONES[profile.streak]) {
+          setTimeout(() => showStreakCelebration(profile.streak), 2000);
+        }
+        // Victory song
+        if (familyData.victorySongUrl) {
+          setTimeout(() => showVictorySong(), STREAK_MILESTONES[profile.streak] ? 5000 : 3000);
+        }
       }, 200);
     }
     renderRewards();
@@ -1917,7 +2341,7 @@ async function init() {
     await initFirebase();
     await loadFamilyData();
     await Promise.all([loadProfile(), loadChores()]);
-    await Promise.all([loadToday(), loadGoals(), loadRewards(), loadCustomActivities()]);
+    await Promise.all([loadToday(), loadGoals(), loadRewards(), loadCustomActivities(), loadYesterdayData()]);
     checkStreakOnLoad();
 
     // Apply saved theme (or default)
@@ -1931,7 +2355,12 @@ async function init() {
     if (!familyData.kidOnboardingComplete) {
       showOnboarding();
     } else {
-      showApp();
+      const reflectionDone = await checkReflectionDone();
+      if (!reflectionDone) {
+        showReflection();
+      } else {
+        showApp();
+      }
     }
   } catch (e) {
     console.error('Init failed:', e);
