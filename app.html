@@ -288,18 +288,28 @@
       border-bottom: 10px solid white;
     }
     .chat-thinking {
-      display: none; color: rgba(255,255,255,0.8); font-size: 16px;
-      font-weight: 600; padding: 14px; text-align: center;
+      display: none; color: white; font-size: 18px;
+      font-weight: 700; padding: 18px; text-align: center;
     }
-    .chat-thinking.visible { display: block; }
-    .thinking-dots::after {
-      content: ''; animation: dots 1.4s steps(4,end) infinite;
+    .chat-thinking.visible { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .thinking-bounce {
+      display: flex; gap: 8px; justify-content: center;
     }
-    @keyframes dots {
-      0% { content: ''; }
-      25% { content: '.'; }
-      50% { content: '..'; }
-      75% { content: '...'; }
+    .thinking-bounce span {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: white; display: inline-block;
+      animation: bounce 1.4s ease-in-out infinite;
+    }
+    .thinking-bounce span:nth-child(2) { animation-delay: 0.16s; }
+    .thinking-bounce span:nth-child(3) { animation-delay: 0.32s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+    .chat-avatar.thinking { animation: avatarPulse 1.5s ease-in-out infinite; }
+    @keyframes avatarPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.7; }
     }
     .chat-you-said {
       color: rgba(255,255,255,0.6); font-size: 13px;
@@ -1430,7 +1440,7 @@ function renderChat() {
     '<div class="chat-container">' +
     '<div class="chat-avatar" id="chatAvatar">🤖</div>' +
     '<div class="chat-speech" id="chatSpeech" onclick="interruptHelper()">Hi! I\'m Helper! Tap the big button to talk to me!</div>' +
-    '<div class="chat-thinking" id="chatThinking">🤔 Helper is thinking<span class="thinking-dots"></span></div>' +
+    '<div class="chat-thinking" id="chatThinking"><div class="thinking-bounce"><span></span><span></span><span></span></div><div>Thinking...</div></div>' +
     '<div class="chat-you-said" id="chatYouSaid"></div>' +
     '<div class="chat-prompts" id="chatPrompts">' +
     CHAT_PROMPTS.map(p =>
@@ -1596,7 +1606,7 @@ async function sendChatText(text) {
   if (prompts) prompts.style.display = 'none';
   if (speech) speech.style.display = 'none';
   if (thinking) thinking.classList.add('visible');
-  if (avatar) avatar.classList.remove('talking');
+  if (avatar) { avatar.classList.remove('talking'); avatar.classList.add('thinking'); }
   chatHistory.push({ role: 'user', content: text });
 
   try {
@@ -1633,6 +1643,7 @@ function showHelperReply(text) {
   var avatar = document.getElementById('chatAvatar');
 
   if (thinking) thinking.classList.remove('visible');
+  if (avatar) avatar.classList.remove('thinking');
   if (speech) {
     speech.textContent = text;
     speech.style.display = '';
