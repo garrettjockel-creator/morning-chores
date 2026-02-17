@@ -1359,12 +1359,15 @@ async function loadCustomActivities() {
 
 async function loadRewards() {
   try {
-    const snap = await familyRef.collection('rewards').orderBy('cost').get();
-    if (!snap.empty) {
-      REWARDS = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    } else {
-      REWARDS = DEFAULT_REWARDS;
+    let snap = await familyRef.collection('rewards').orderBy('cost').get();
+    if (snap.empty) {
+      // Seed defaults into Firestore so parent can customize them
+      var batch = db.batch();
+      DEFAULT_REWARDS.forEach(function(r) { batch.set(familyRef.collection('rewards').doc(), { emoji: r.emoji, name: r.name, cost: r.cost }); });
+      await batch.commit();
+      snap = await familyRef.collection('rewards').orderBy('cost').get();
     }
+    REWARDS = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) { REWARDS = DEFAULT_REWARDS; }
 }
 

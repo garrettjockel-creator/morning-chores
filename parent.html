@@ -608,8 +608,19 @@ async function loadDashData() {
   const gSnap = await familyRef.collection('goals').orderBy('createdAt', 'desc').get();
   const goals = gSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-  // Rewards
-  const rSnap = await familyRef.collection('rewards').orderBy('cost').get();
+  // Rewards — seed defaults if none exist
+  let rSnap = await familyRef.collection('rewards').orderBy('cost').get();
+  if (rSnap.empty) {
+    const defaults = [
+      { emoji: '💵', name: '$20 Reward', cost: 500 },
+      { emoji: '💰', name: '$50 Reward', cost: 1000 },
+      { emoji: '🤑', name: '$200 Reward', cost: 2000 },
+    ];
+    const batch = db.batch();
+    defaults.forEach(r => batch.set(familyRef.collection('rewards').doc(), r));
+    await batch.commit();
+    rSnap = await familyRef.collection('rewards').orderBy('cost').get();
+  }
   const rewards = rSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   rewardsList = rewards;
 
@@ -802,7 +813,7 @@ async function deleteGoal(id) {
 function renderRewardsManager(rewards) {
   const el = document.getElementById('rewardsManager');
   if (!rewards || rewards.length === 0) {
-    el.innerHTML = '<p style="color:#999;font-size:13px;">No custom rewards yet. Default rewards will be shown to your kid.</p>';
+    el.innerHTML = '<p style="color:#999;font-size:13px;">No rewards set up yet.</p>';
     return;
   }
   el.innerHTML = rewards.map(r =>
