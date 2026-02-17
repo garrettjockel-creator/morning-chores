@@ -133,7 +133,7 @@ export default {
         },
         body: JSON.stringify({
           model: 'claude-3-haiku-20240307',
-          max_tokens: 150,
+          max_tokens: 300,
           system: systemPrompt,
           messages: messages.slice(-10).map(m => ({
             role: m.role,
