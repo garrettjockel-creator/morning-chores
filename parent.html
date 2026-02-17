@@ -136,12 +136,14 @@
     /* Goals */
     .goal-item {
       display: flex; align-items: center; gap: 10px;
-      padding: 8px 0; border-bottom: 1px solid #f0f0f0;
+      padding: 10px 0; border-bottom: 1px solid #f0f0f0;
     }
     .goal-item:last-child { border-bottom: none; }
-    .goal-status { font-size: 18px; }
+    .goal-status { font-size: 18px; cursor: pointer; }
     .goal-text { font-size: 14px; flex: 1; }
+    .goal-text.completed { text-decoration: line-through; color: #999; }
     .goal-empty { color: #999; font-size: 13px; }
+    .goal-actions { display: flex; gap: 6px; }
 
     /* Settings */
     .setting-row {
@@ -162,6 +164,20 @@
       font-size: 14px; font-weight: 600; cursor: pointer;
       margin-top: 14px; width: 100%;
     }
+
+    /* QR Code Section */
+    .qr-section { text-align: center; }
+    .qr-section img {
+      border-radius: 12px; margin: 10px 0;
+      background: white; padding: 8px;
+    }
+    .qr-text { font-size: 13px; color: #666; margin-bottom: 10px; }
+    .btn-copy-link {
+      background: var(--primary); color: white; border: none;
+      border-radius: 10px; padding: 8px 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-copy-link:active { transform: scale(0.97); }
   </style>
 </head>
 <body>
@@ -239,6 +255,15 @@
     <div class="section">
       <h3>Goals</h3>
       <div id="goalsContainer"><div class="goal-empty">No goals set yet.</div></div>
+      <button class="btn-add" onclick="openGoalForm()">+ Add Goal</button>
+    </div>
+
+    <!-- QR Code -->
+    <div class="section qr-section" id="qrSection">
+      <h3>Get App on Kid's Device</h3>
+      <img id="qrImage" src="" alt="QR Code" width="200" height="200">
+      <div class="qr-text">Scan this QR code with your kid's iPad or iPhone camera</div>
+      <button class="btn-copy-link" id="copyLinkBtn" onclick="copyKidLink()">Copy Link</button>
     </div>
 
     <!-- Settings -->
@@ -286,6 +311,21 @@
       <div class="form-actions">
         <button class="btn-cancel" onclick="closeChoreForm()">Cancel</button>
         <button class="btn-save" onclick="saveChore()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Goal Form Modal -->
+  <div class="form-overlay" id="goalFormOverlay">
+    <div class="form-card">
+      <h3>Add Goal</h3>
+      <div class="form-group">
+        <label>What's the goal?</label>
+        <input id="gfText" placeholder="e.g. Learn to ride my bike">
+      </div>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="closeGoalForm()">Cancel</button>
+        <button class="btn-save" onclick="saveGoal()">Save</button>
       </div>
     </div>
   </div>
@@ -433,7 +473,33 @@ function showPinError(msg) {
 async function showDashboard() {
   document.getElementById('pinGate').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
+
+  // Set up QR code
+  const kidUrl = 'https://garrettjockel-creator.github.io/morning-chores/app.html?f=' + familyId;
+  const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(kidUrl);
+  document.getElementById('qrImage').src = qrUrl;
+
   await loadDashData();
+}
+
+function copyKidLink() {
+  const kidUrl = 'https://garrettjockel-creator.github.io/morning-chores/app.html?f=' + familyId;
+  navigator.clipboard.writeText(kidUrl).then(function() {
+    const btn = document.getElementById('copyLinkBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy Link'; }, 2000);
+  }).catch(function() {
+    // Fallback
+    var ta = document.createElement('textarea');
+    ta.value = kidUrl;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    var btn = document.getElementById('copyLinkBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy Link'; }, 2000);
+  });
 }
 
 async function loadDashData() {
@@ -544,8 +610,11 @@ function renderGoals(goals) {
   if (!goals || goals.length === 0) { el.innerHTML = '<div class="goal-empty">No goals set yet.</div>'; return; }
   el.innerHTML = goals.map(g =>
     '<div class="goal-item">' +
-    '<div class="goal-status">' + (g.completed ? '✅' : '🎯') + '</div>' +
-    '<div class="goal-text">' + g.text + '</div></div>'
+    '<div class="goal-status" onclick="toggleGoal(\'' + g.id + '\',' + !g.completed + ')" title="Toggle complete">' + (g.completed ? '✅' : '🎯') + '</div>' +
+    '<div class="goal-text' + (g.completed ? ' completed' : '') + '">' + g.text + '</div>' +
+    '<div class="goal-actions">' +
+    '<button class="btn-sm btn-del" onclick="deleteGoal(\'' + g.id + '\')">Del</button>' +
+    '</div></div>'
   ).join('');
 }
 
@@ -603,6 +672,37 @@ async function saveChore() {
 async function deleteChore(id) {
   if (!confirm('Remove this chore?')) return;
   await familyRef.collection('chores').doc(id).delete();
+  await loadDashData();
+}
+
+// ===== GOAL CRUD =====
+function openGoalForm() {
+  document.getElementById('gfText').value = '';
+  document.getElementById('goalFormOverlay').classList.add('visible');
+}
+
+function closeGoalForm() { document.getElementById('goalFormOverlay').classList.remove('visible'); }
+
+async function saveGoal() {
+  const text = document.getElementById('gfText').value.trim();
+  if (!text) return;
+  await familyRef.collection('goals').doc().set({
+    text: text,
+    completed: false,
+    createdAt: new Date().toISOString(),
+  });
+  closeGoalForm();
+  await loadDashData();
+}
+
+async function toggleGoal(id, completed) {
+  await familyRef.collection('goals').doc(id).update({ completed: completed });
+  await loadDashData();
+}
+
+async function deleteGoal(id) {
+  if (!confirm('Remove this goal?')) return;
+  await familyRef.collection('goals').doc(id).delete();
   await loadDashData();
 }
 

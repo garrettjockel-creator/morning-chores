@@ -75,7 +75,7 @@ export default {
           return jsonResponse({ error: 'Invalid JSON' }, 400);
         }
 
-        const text = (body.text || '').slice(0, 500);
+        const text = (body.text || '').slice(0, 4096);
         if (!text) return jsonResponse({ error: 'No text provided' }, 400);
 
         const ttsRes = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -87,7 +87,7 @@ export default {
           body: JSON.stringify({
             model: 'tts-1',
             input: text,
-            voice: 'shimmer',
+            voice: 'nova',
             response_format: 'mp3',
           }),
         });

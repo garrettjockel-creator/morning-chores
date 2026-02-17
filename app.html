@@ -722,8 +722,8 @@ function getFamilyId() {
   }
   fid = localStorage.getItem('familyId');
   if (fid) return fid;
-  // No family ID — redirect to landing page
-  window.location.href = 'index.html';
+  // No family ID — redirect to kid login page
+  window.location.href = 'login.html';
   return null;
 }
 
@@ -971,7 +971,7 @@ function speak(text, btn, callback) {
   fetch(ttsUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: text.slice(0, 500) }),
+    body: JSON.stringify({ text: text.slice(0, 4096) }),
   })
   .then(function(res) {
     if (!res.ok) throw new Error('TTS failed');
@@ -998,8 +998,8 @@ function speak(text, btn, callback) {
 function speakBrowser(text, btn, callback) {
   if (callback) onSpeakDone = callback;
   var utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 0.9;
-  utter.pitch = 1.05;
+  utter.rate = 1.0;
+  utter.pitch = 1.15;
   utter.lang = 'en-US';
   if (btn) btn.classList.add('speaking');
   utter.onend = function() {
@@ -1024,9 +1024,9 @@ async function initFirebase() {
 async function loadFamilyData() {
   const doc = await familyRef.get();
   if (!doc.exists) {
-    // Family doesn't exist — redirect to landing
+    // Family doesn't exist — redirect to login
     localStorage.removeItem('familyId');
-    window.location.href = 'index.html';
+    window.location.href = 'login.html';
     return;
   }
   familyData = doc.data();
@@ -1584,7 +1584,8 @@ function showHelperReply(text) {
   }
 
   speak(text, null, onDone);
-  setTimeout(onDone, Math.max(4000, text.length * 80 + 2000));
+  // Generous timeout: ~120ms per char covers TTS fetch + playback
+  setTimeout(onDone, Math.max(8000, text.length * 120 + 4000));
 }
 
 function toggleConversation() {
