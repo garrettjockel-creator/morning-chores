@@ -241,6 +241,10 @@
         <input type="email" id="parentEmail" placeholder="e.g. sarah@email.com" autocomplete="email">
       </div>
       <div class="form-group">
+        <label>Family Last Name</label>
+        <input type="text" id="lastName" placeholder="e.g. Smith" autocomplete="family-name">
+      </div>
+      <div class="form-group">
         <label>Child's First Name</label>
         <input type="text" id="childName" placeholder="e.g. Emma" autocomplete="off">
       </div>
@@ -310,9 +314,9 @@
       <div class="loading-spinner" id="loadingSpinner"></div>
       <div class="loading-text" id="loadingText">Setting up your family...</div>
       <div id="successInfo" style="display:none;">
-        <div style="font-size:14px; color:#888; margin-bottom:4px;">Your kid's family code:</div>
-        <div id="familyCodeDisplay" style="font-size:32px; font-weight:900; letter-spacing:6px; color:#667eea; margin-bottom:12px;"></div>
-        <div style="font-size:12px; color:#999; margin-bottom:16px;">Give this code to your kid so they can log in on their own device.</div>
+        <div style="font-size:14px; color:#888; margin-bottom:8px;">Your kid can log in with:</div>
+        <div style="font-size:18px; font-weight:800; color:#667eea; margin-bottom:4px;">Your last name + PIN</div>
+        <div style="font-size:12px; color:#999; margin-bottom:16px;">On their device, open the app and enter your family last name and parent PIN.</div>
         <button onclick="goToApp()" style="padding:12px 24px; background:#667eea; color:white; border:none; border-radius:12px; font-size:16px; font-weight:800; cursor:pointer;">Continue to App</button>
       </div>
     </div>
@@ -565,12 +569,14 @@ async function handlePinComplete() {
 async function submitSignup() {
   const parentName = document.getElementById('parentName').value.trim();
   const parentEmail = document.getElementById('parentEmail').value.trim();
+  const lastName = document.getElementById('lastName').value.trim();
   const childName = document.getElementById('childName').value.trim();
   const errorEl = document.getElementById('formError');
 
   // Validate
   if (!parentName) { showError('Please enter your first name.'); return; }
   if (!parentEmail) { showError('Please enter your email.'); return; }
+  if (!lastName) { showError('Please enter your family last name.'); return; }
   if (!childName) { showError("Please enter your child's first name."); return; }
   if (!pinConfirmed) { showError('Please create and confirm a 4-digit PIN.'); return; }
   const choicesToSave = getSelectedChoreList();
@@ -588,18 +594,14 @@ async function submitSignup() {
     const familyRef = db.collection('families').doc();
     const familyId = familyRef.id;
 
-    // Generate a 6-character family code
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let familyCode = '';
-    for (let i = 0; i < 6; i++) familyCode += chars.charAt(Math.floor(Math.random() * chars.length));
-
     // Family doc
     await familyRef.set({
       parentName: parentName,
       parentEmail: parentEmail,
+      lastName: lastName,
+      lastNameLower: lastName.toLowerCase(),
       childName: childName,
       pinHash: finalPinHash,
-      familyCode: familyCode,
       workerUrl: 'https://morning-chores-helper.gjockel.workers.dev',
       chatEnabled: true,
       xpPerChore: 10,
@@ -646,10 +648,9 @@ async function submitSignup() {
     // Clear passcode session
     sessionStorage.removeItem('passcodeVerified');
 
-    // Show family code on success screen
+    // Show success screen
     document.getElementById('loadingSpinner').style.display = 'none';
     document.getElementById('loadingText').textContent = 'You\'re all set!';
-    document.getElementById('familyCodeDisplay').textContent = familyCode;
     document.getElementById('successInfo').style.display = 'block';
     window._signupFamilyId = familyId;
 

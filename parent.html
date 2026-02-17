@@ -273,7 +273,7 @@
     <div class="section qr-section" id="qrSection">
       <h3>Get App on Kid's Device</h3>
       <img id="qrImage" src="" alt="QR Code" width="200" height="200">
-      <div class="qr-text">Scan this QR code with your kid's iPad or iPhone camera</div>
+      <div class="qr-text">Scan this QR code with your kid's iPad or iPhone camera to open the login page</div>
       <button class="btn-copy-link" id="copyLinkBtn" onclick="copyKidLink()">Copy Link</button>
     </div>
 
@@ -555,24 +555,23 @@ async function showDashboard() {
   document.getElementById('pinGate').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
 
-  // Set up QR code
-  const kidUrl = 'https://garrettjockel-creator.github.io/morning-chores/app.html?f=' + familyId;
-  const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(kidUrl);
+  // Set up QR code pointing to login page
+  const loginUrl = 'https://garrettjockel-creator.github.io/morning-chores/login.html';
+  const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(loginUrl);
   document.getElementById('qrImage').src = qrUrl;
 
   await loadDashData();
 }
 
 function copyKidLink() {
-  const kidUrl = 'https://garrettjockel-creator.github.io/morning-chores/app.html?f=' + familyId;
-  navigator.clipboard.writeText(kidUrl).then(function() {
+  const loginUrl = 'https://garrettjockel-creator.github.io/morning-chores/login.html';
+  navigator.clipboard.writeText(loginUrl).then(function() {
     const btn = document.getElementById('copyLinkBtn');
     btn.textContent = 'Copied!';
     setTimeout(function() { btn.textContent = 'Copy Link'; }, 2000);
   }).catch(function() {
-    // Fallback
     var ta = document.createElement('textarea');
-    ta.value = kidUrl;
+    ta.value = loginUrl;
     document.body.appendChild(ta);
     ta.select();
     document.execCommand('copy');

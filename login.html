@@ -14,6 +14,7 @@
       --primary-dark: #764ba2;
       --green: #34d399;
       --gold: #fbbf24;
+      --red: #ef4444;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
     body {
@@ -47,7 +48,7 @@
       margin-bottom: 32px;
     }
 
-    /* Code entry card */
+    /* Card */
     .login-card {
       width: 100%;
       background: white;
@@ -65,26 +66,23 @@
       margin-bottom: 20px;
     }
 
-    .code-input {
+    .name-input {
       width: 100%;
       padding: 16px;
       border: 3px solid #e5e7eb;
       border-radius: 16px;
-      font-size: 28px;
-      font-weight: 900;
+      font-size: 22px;
+      font-weight: 700;
       text-align: center;
-      letter-spacing: 8px;
-      text-transform: uppercase;
       outline: none;
       -webkit-appearance: none;
     }
-    .code-input::placeholder {
-      letter-spacing: 2px;
+    .name-input::placeholder {
       font-size: 16px;
       font-weight: 600;
       color: #ccc;
     }
-    .code-input:focus { border-color: var(--primary); }
+    .name-input:focus { border-color: var(--primary); }
 
     .go-btn {
       width: 100%;
@@ -103,7 +101,7 @@
     .go-btn:disabled { background: #ccc; cursor: not-allowed; }
 
     .error-msg {
-      color: #ef4444;
+      color: var(--red);
       font-size: 14px;
       font-weight: 600;
       margin-top: 12px;
@@ -119,62 +117,67 @@
     }
     .shake { animation: shake 0.4s ease-in-out; }
 
-    /* Screen 2 — Confirm kid */
-    .confirm-screen { display: none; }
-    .confirm-screen.visible { display: block; }
-    .code-screen.hidden { display: none; }
+    /* Screen visibility */
+    .screen { display: none; width: 100%; }
+    .screen.visible { display: block; }
 
+    /* PIN Pad */
+    .pin-dots {
+      display: flex; gap: 12px; justify-content: center; margin-bottom: 16px;
+    }
+    .pin-dot {
+      width: 18px; height: 18px; border-radius: 50%;
+      border: 3px solid #ccc; transition: all 0.2s;
+    }
+    .pin-dot.filled { background: var(--primary); border-color: var(--primary); }
+    .pin-dot.error { background: var(--red); border-color: var(--red); }
+    .pin-pad {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 8px;
+      max-width: 220px; margin: 0 auto;
+    }
+    .pin-key {
+      background: #f3f4f6; border: none; border-radius: 12px;
+      padding: 14px; font-size: 22px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pin-key:active { background: #e5e7eb; }
+    .pin-key.back { font-size: 16px; color: #888; }
+
+    /* Kid picker */
+    .kid-grid {
+      display: flex; flex-direction: column; gap: 12px;
+      width: 100%;
+    }
     .kid-card {
       width: 100%;
       background: white;
       border-radius: 20px;
-      padding: 32px 24px;
+      padding: 24px 20px;
       color: #1a1a2e;
       text-align: center;
       cursor: pointer;
       transition: transform 0.2s;
       border: 3px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 16px;
     }
     .kid-card:active { transform: scale(0.97); }
+    .kid-card:hover { border-color: var(--green); }
     .kid-avatar {
-      width: 80px; height: 80px;
+      width: 60px; height: 60px;
       border-radius: 50%;
       background: linear-gradient(135deg, var(--primary), var(--primary-dark));
       display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 16px;
-      font-size: 40px;
+      font-size: 28px; font-weight: 900;
       color: white;
+      flex-shrink: 0;
     }
     .kid-name {
-      font-size: 28px;
+      font-size: 24px;
       font-weight: 900;
-    }
-
-    .confirm-btn {
-      width: 100%;
-      margin-top: 20px;
-      padding: 16px;
-      background: var(--green);
-      color: white;
-      border: none;
-      border-radius: 14px;
-      font-size: 18px;
-      font-weight: 800;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    .confirm-btn:active { transform: scale(0.97); }
-
-    .not-me-link {
-      margin-top: 16px;
-      font-size: 14px;
-      opacity: 0.7;
-    }
-    .not-me-link a {
-      color: white;
-      text-decoration: underline;
-      font-weight: 600;
-      cursor: pointer;
+      text-align: left;
     }
 
     .back-link {
@@ -182,7 +185,7 @@
       font-size: 14px;
       opacity: 0.7;
     }
-    .back-link a { color: white; text-decoration: underline; font-weight: 600; }
+    .back-link a { color: white; text-decoration: underline; font-weight: 600; cursor: pointer; }
 
     .footer {
       margin-top: auto;
@@ -209,19 +212,21 @@
 <body>
   <div class="container">
 
-    <!-- Screen 1: Enter Family Code -->
-    <div class="code-screen" id="codeScreen">
-      <div class="hero-emoji">👋</div>
-      <h1 class="hero-title">Hi there!</h1>
-      <p class="hero-subtitle">Enter your family code to get started</p>
+    <!-- Screen 1: Enter Last Name -->
+    <div class="screen visible" id="nameScreen">
+      <div style="text-align:center;">
+        <div class="hero-emoji">👋</div>
+        <h1 class="hero-title">Hi there!</h1>
+        <p class="hero-subtitle">What's your family last name?</p>
+      </div>
 
       <div class="login-card">
-        <div class="login-card-title">Family Code</div>
-        <div class="login-card-sub">Ask your parent for this code</div>
-        <input type="text" class="code-input" id="codeInput" placeholder="ABC123" maxlength="6" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
-        <button class="go-btn" id="goBtn" onclick="lookupCode()">Let's Go!</button>
-        <div class="loading-spinner" id="codeSpinner"></div>
-        <div class="error-msg" id="codeError">Hmm, that code didn't work. Try again!</div>
+        <div class="login-card-title">Last Name</div>
+        <div class="login-card-sub">Ask your parent if you're not sure</div>
+        <input type="text" class="name-input" id="lastNameInput" placeholder="e.g. Smith" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+        <button class="go-btn" id="nameBtn" onclick="submitLastName()">Next</button>
+        <div class="loading-spinner" id="nameSpinner"></div>
+        <div class="error-msg" id="nameError"></div>
       </div>
 
       <div class="back-link">
@@ -229,21 +234,56 @@
       </div>
     </div>
 
-    <!-- Screen 2: Confirm Kid -->
-    <div class="confirm-screen" id="confirmScreen">
-      <div class="hero-emoji">🎉</div>
-      <h1 class="hero-title">Is this you?</h1>
-      <p class="hero-subtitle">Tap your name to jump in!</p>
-
-      <div class="kid-card" id="kidCard" onclick="confirmKid()">
-        <div class="kid-avatar" id="kidAvatar">⭐</div>
-        <div class="kid-name" id="kidName"></div>
+    <!-- Screen 2: Enter PIN -->
+    <div class="screen" id="pinScreen">
+      <div style="text-align:center;">
+        <div class="hero-emoji">🔒</div>
+        <h1 class="hero-title">Enter PIN</h1>
+        <p class="hero-subtitle">Type your 4-digit parent PIN</p>
       </div>
 
-      <button class="confirm-btn" onclick="confirmKid()">That's me!</button>
+      <div class="login-card">
+        <div class="pin-dots">
+          <div class="pin-dot" id="d0"></div>
+          <div class="pin-dot" id="d1"></div>
+          <div class="pin-dot" id="d2"></div>
+          <div class="pin-dot" id="d3"></div>
+        </div>
+        <div class="pin-pad">
+          <button class="pin-key" onclick="pinPress('1')">1</button>
+          <button class="pin-key" onclick="pinPress('2')">2</button>
+          <button class="pin-key" onclick="pinPress('3')">3</button>
+          <button class="pin-key" onclick="pinPress('4')">4</button>
+          <button class="pin-key" onclick="pinPress('5')">5</button>
+          <button class="pin-key" onclick="pinPress('6')">6</button>
+          <button class="pin-key" onclick="pinPress('7')">7</button>
+          <button class="pin-key" onclick="pinPress('8')">8</button>
+          <button class="pin-key" onclick="pinPress('9')">9</button>
+          <button class="pin-key" disabled></button>
+          <button class="pin-key" onclick="pinPress('0')">0</button>
+          <button class="pin-key back" onclick="pinBack()">&#9003;</button>
+        </div>
+        <div class="loading-spinner" id="pinSpinner"></div>
+        <div class="error-msg" id="pinError"></div>
+      </div>
 
-      <div class="not-me-link">
-        <a onclick="goBack()">Not me — go back</a>
+      <div class="back-link">
+        <a onclick="goBackToName()">&#8592; Try a different name</a>
+      </div>
+    </div>
+
+    <!-- Screen 3: Pick Your Kid -->
+    <div class="screen" id="kidScreen">
+      <div style="text-align:center;">
+        <div class="hero-emoji">🎉</div>
+        <h1 class="hero-title">Who's here?</h1>
+        <p class="hero-subtitle">Tap your name to jump in!</p>
+      </div>
+
+      <div class="kid-grid" id="kidGrid"></div>
+
+      <div class="back-link">
+        <a onclick="goBackToName()">&#8592; Go back</a>
       </div>
     </div>
 
@@ -263,29 +303,32 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let foundFamilyId = null;
-let foundChildName = null;
+let familyDocs = []; // all docs matching lastNameLower
+let matchedKids = []; // docs matching lastNameLower + pinHash
+let pinBuffer = '';
 
-// Auto-uppercase as user types
-document.getElementById('codeInput').addEventListener('input', function() {
-  this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+// Enter key on last name input
+document.getElementById('lastNameInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') submitLastName();
 });
 
-// Enter key
-document.getElementById('codeInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') lookupCode();
-});
+// --- Screen navigation ---
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+  document.getElementById(id).classList.add('visible');
+}
 
-async function lookupCode() {
-  const code = document.getElementById('codeInput').value.trim().toUpperCase();
-  const errorEl = document.getElementById('codeError');
-  const spinner = document.getElementById('codeSpinner');
-  const btn = document.getElementById('goBtn');
+// --- Screen 1: Last Name ---
+async function submitLastName() {
+  const input = document.getElementById('lastNameInput').value.trim();
+  const errorEl = document.getElementById('nameError');
+  const spinner = document.getElementById('nameSpinner');
+  const btn = document.getElementById('nameBtn');
 
   errorEl.classList.remove('visible');
 
-  if (!code || code.length < 6) {
-    errorEl.textContent = 'Please enter a 6-character code.';
+  if (!input) {
+    errorEl.textContent = 'Please enter your last name.';
     errorEl.classList.add('visible');
     return;
   }
@@ -294,27 +337,24 @@ async function lookupCode() {
   spinner.classList.add('visible');
 
   try {
-    const snap = await db.collection('families').where('familyCode', '==', code).get();
+    const snap = await db.collection('families')
+      .where('lastNameLower', '==', input.toLowerCase())
+      .get();
 
     if (snap.empty) {
-      errorEl.textContent = "Hmm, that code didn't work. Try again!";
+      errorEl.textContent = "We couldn't find that family name. Try again!";
       errorEl.classList.add('visible');
-      document.getElementById('codeInput').classList.add('shake');
-      setTimeout(() => document.getElementById('codeInput').classList.remove('shake'), 400);
+      document.getElementById('lastNameInput').classList.add('shake');
+      setTimeout(() => document.getElementById('lastNameInput').classList.remove('shake'), 400);
       btn.disabled = false;
       spinner.classList.remove('visible');
       return;
     }
 
-    const doc = snap.docs[0];
-    foundFamilyId = doc.id;
-    foundChildName = doc.data().childName || 'Kid';
-
-    // Show Screen 2
-    document.getElementById('kidName').textContent = foundChildName;
-    document.getElementById('kidAvatar').textContent = foundChildName.charAt(0).toUpperCase();
-    document.getElementById('codeScreen').classList.add('hidden');
-    document.getElementById('confirmScreen').classList.add('visible');
+    familyDocs = snap.docs;
+    pinBuffer = '';
+    updateDots();
+    showScreen('pinScreen');
 
   } catch (e) {
     console.error('Lookup failed:', e);
@@ -326,18 +366,96 @@ async function lookupCode() {
   spinner.classList.remove('visible');
 }
 
-function confirmKid() {
-  localStorage.setItem('familyId', foundFamilyId);
-  window.location.href = 'app.html?f=' + foundFamilyId;
+// --- Screen 2: PIN ---
+async function hashPin(pin) {
+  const data = new TextEncoder().encode(pin);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-function goBack() {
-  foundFamilyId = null;
-  foundChildName = null;
-  document.getElementById('confirmScreen').classList.remove('visible');
-  document.getElementById('codeScreen').classList.remove('hidden');
-  document.getElementById('codeInput').value = '';
-  document.getElementById('codeError').classList.remove('visible');
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('d' + i);
+    dot.className = 'pin-dot' + (i < pinBuffer.length ? ' filled' : '');
+  }
+}
+
+function pinPress(digit) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += digit;
+  updateDots();
+  if (pinBuffer.length === 4) setTimeout(submitPin, 200);
+}
+
+function pinBack() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updateDots();
+  document.getElementById('pinError').classList.remove('visible');
+}
+
+async function submitPin() {
+  const spinner = document.getElementById('pinSpinner');
+  const errorEl = document.getElementById('pinError');
+  errorEl.classList.remove('visible');
+  spinner.classList.add('visible');
+
+  const hashed = await hashPin(pinBuffer);
+
+  matchedKids = familyDocs.filter(d => d.data().pinHash === hashed);
+
+  spinner.classList.remove('visible');
+
+  if (matchedKids.length === 0) {
+    errorEl.textContent = 'Wrong PIN. Try again!';
+    errorEl.classList.add('visible');
+    for (let i = 0; i < 4; i++) document.getElementById('d' + i).classList.add('error');
+    setTimeout(() => {
+      for (let i = 0; i < 4; i++) document.getElementById('d' + i).classList.remove('error');
+    }, 600);
+    pinBuffer = '';
+    updateDots();
+    return;
+  }
+
+  // Single kid → auto-load
+  if (matchedKids.length === 1) {
+    selectKid(matchedKids[0].id);
+    return;
+  }
+
+  // Multiple kids → show picker
+  renderKidPicker();
+  showScreen('kidScreen');
+}
+
+// --- Screen 3: Kid Picker ---
+function renderKidPicker() {
+  const grid = document.getElementById('kidGrid');
+  grid.innerHTML = matchedKids.map(doc => {
+    const data = doc.data();
+    const name = data.childName || 'Kid';
+    const initial = name.charAt(0).toUpperCase();
+    return '<div class="kid-card" onclick="selectKid(\'' + doc.id + '\')">' +
+      '<div class="kid-avatar">' + initial + '</div>' +
+      '<div class="kid-name">' + name + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function selectKid(familyId) {
+  localStorage.setItem('familyId', familyId);
+  window.location.href = 'app.html?f=' + familyId;
+}
+
+// --- Navigation ---
+function goBackToName() {
+  familyDocs = [];
+  matchedKids = [];
+  pinBuffer = '';
+  document.getElementById('lastNameInput').value = '';
+  document.getElementById('nameError').classList.remove('visible');
+  document.getElementById('pinError').classList.remove('visible');
+  showScreen('nameScreen');
 }
 </script>
 </body>
