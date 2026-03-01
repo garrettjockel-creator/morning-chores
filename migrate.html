@@ -98,17 +98,13 @@ async function fixLogin() {
     let updated = 0;
     for (const doc of snap.docs) {
       const data = doc.data();
-      if (!data.lastNameLower) {
-        log('Updating ' + doc.id + ' (' + (data.childName || 'unknown') + ')...');
-        await doc.ref.update({
-          lastName: 'Jockel',
-          lastNameLower: 'jockel'
-        });
-        updated++;
-        log('  → Added lastName: Jockel', 'success');
-      } else {
-        log('Skipping ' + doc.id + ' — already has lastNameLower: ' + data.lastNameLower);
-      }
+      log('Updating ' + doc.id + ' (' + (data.childName || 'unknown') + ')...');
+      await doc.ref.update({
+        lastName: 'Jockel',
+        lastNameLower: 'jockel'
+      });
+      updated++;
+      log('  → Set lastName: Jockel', 'success');
     }
 
     log('\n========================================', 'success');
