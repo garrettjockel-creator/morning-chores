@@ -37,6 +37,14 @@
 <body>
   <div class="container">
     <h1>Data Migration</h1>
+
+    <h2 style="font-size:18px; margin-bottom:6px;">Fix Login (Add Last Name)</h2>
+    <p>Adds <code>lastName</code> and <code>lastNameLower</code> fields to all existing family documents so the new last name + PIN login works.</p>
+    <button class="btn" id="fixLoginBtn" onclick="fixLogin()">Fix Login</button>
+
+    <hr style="border:none; border-top:1px solid rgba(255,255,255,0.2); margin: 20px 0;">
+
+    <h2 style="font-size:18px; margin-bottom:6px;">Old: Flat → Families Migration</h2>
     <p>This will copy Garrett's existing data from the old flat Firestore structure into a new <code>families/{id}/</code> subcollection structure. Run this once, then save the new family ID.</p>
     <button class="btn" id="migrateBtn" onclick="runMigration()">Run Migration</button>
     <div id="log"></div>
@@ -61,12 +69,64 @@ function log(msg, cls) {
   logEl.scrollTop = logEl.scrollHeight;
 }
 
+let firebaseInited = false;
+function initFirebase() {
+  if (!firebaseInited) {
+    firebase.initializeApp(firebaseConfig);
+    firebaseInited = true;
+  }
+  return firebase.firestore();
+}
+
+async function fixLogin() {
+  document.getElementById('fixLoginBtn').disabled = true;
+
+  try {
+    const db = initFirebase();
+    log('Firebase initialized.');
+
+    log('Fetching all family documents...');
+    const snap = await db.collection('families').get();
+
+    if (snap.empty) {
+      log('No family documents found.', 'error');
+      return;
+    }
+
+    log('Found ' + snap.size + ' family document(s).');
+
+    let updated = 0;
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      if (!data.lastNameLower) {
+        log('Updating ' + doc.id + ' (' + (data.childName || 'unknown') + ')...');
+        await doc.ref.update({
+          lastName: 'Jockel',
+          lastNameLower: 'jockel'
+        });
+        updated++;
+        log('  → Added lastName: Jockel', 'success');
+      } else {
+        log('Skipping ' + doc.id + ' — already has lastNameLower: ' + data.lastNameLower);
+      }
+    }
+
+    log('\n========================================', 'success');
+    log('DONE! Updated ' + updated + ' document(s).', 'success');
+    log('========================================', 'success');
+    log('\nKids can now log in with last name "Jockel" + your parent PIN.');
+
+  } catch (e) {
+    log('Fix failed: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
 async function runMigration() {
   document.getElementById('migrateBtn').disabled = true;
 
   try {
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    const db = initFirebase();
     log('Firebase initialized.');
 
     // 1. Read old config
