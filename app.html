@@ -1293,7 +1293,9 @@ function closeVictorySong() {
 
 // ===== FIREBASE =====
 async function initFirebase() {
-  firebase.initializeApp(firebaseConfig);
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
   db = firebase.firestore();
   familyRef = db.collection('families').doc(familyId);
   try { await db.enablePersistence(); } catch (e) { /* ok */ }
@@ -2380,7 +2382,8 @@ function showApp() {
 }
 
 // ===== INIT =====
-async function init() {
+async function init(retries) {
+  if (retries === undefined) retries = 2;
   if (!familyId) return;
   try {
     await initFirebase();
@@ -2408,13 +2411,18 @@ async function init() {
       }
     }
   } catch (e) {
-    console.error('Init failed:', e);
+    console.error('Init failed (retries left: ' + retries + '):', e);
+    if (retries > 0) {
+      await new Promise(function(r) { setTimeout(r, 1500); });
+      return init(retries - 1);
+    }
     document.getElementById('loadingScreen').innerHTML =
       '<div style="text-align:center;color:white;padding:20px;max-width:400px;">' +
       '<div style="font-size:48px;margin-bottom:12px;">🔧</div>' +
       '<h2>Something went wrong</h2>' +
       '<p style="margin-top:10px;opacity:0.85;font-size:14px;line-height:1.5;">' +
       'Could not load your family data. Please try again.</p>' +
+      '<button onclick="window.location.reload()" style="margin-top:20px;padding:12px 32px;background:white;color:#667eea;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;">Try Again</button>' +
       '</div>';
   }
 }
