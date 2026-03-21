@@ -2416,12 +2416,14 @@ async function init(retries) {
       await new Promise(function(r) { setTimeout(r, 1500); });
       return init(retries - 1);
     }
+    var errMsg = e && e.message ? e.message : String(e);
     document.getElementById('loadingScreen').innerHTML =
       '<div style="text-align:center;color:white;padding:20px;max-width:400px;">' +
       '<div style="font-size:48px;margin-bottom:12px;">🔧</div>' +
       '<h2>Something went wrong</h2>' +
       '<p style="margin-top:10px;opacity:0.85;font-size:14px;line-height:1.5;">' +
       'Could not load your family data. Please try again.</p>' +
+      '<p style="margin-top:10px;opacity:0.5;font-size:11px;word-break:break-all;">' + errMsg + '</p>' +
       '<button onclick="window.location.reload()" style="margin-top:20px;padding:12px 32px;background:white;color:#667eea;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;">Try Again</button>' +
       '</div>';
   }
