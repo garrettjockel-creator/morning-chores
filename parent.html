@@ -7,6 +7,7 @@
   <title>Parent Dashboard</title>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
   <style>
     :root { --primary: #667eea; --primary-dark: #764ba2; --green: #22c55e; --gold: #fbbf24; --red: #ef4444; }
     * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
@@ -15,9 +16,29 @@
       background: #f3f4f6; color: #1a1a2e; min-height: 100vh;
     }
 
+    /* ===== AUTH GATE ===== */
+    #authGate {
+      display: none; align-items: center; justify-content: center;
+      min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+    }
+    .google-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 14px 18px; margin-top: 8px;
+      background: white; color: #1f2937; border: 1px solid #dadce0;
+      border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .google-btn:active { background: #f3f4f6; }
+    .google-btn img { width: 18px; height: 18px; }
+    .text-btn {
+      margin-top: 14px; background: none; border: none; color: #888;
+      font-size: 13px; text-decoration: underline; cursor: pointer;
+    }
+
     /* ===== PIN GATE ===== */
     #pinGate {
-      display: flex; align-items: center; justify-content: center;
+      display: none; align-items: center; justify-content: center;
       min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       padding: 20px;
     }
@@ -181,6 +202,20 @@
   </style>
 </head>
 <body>
+
+  <!-- GOOGLE AUTH GATE -->
+  <div id="authGate">
+    <div class="pin-card">
+      <h2>Parent Dashboard</h2>
+      <p id="authMsg">Sign in with Google to access your family.</p>
+      <button class="google-btn" onclick="signInGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">
+        Sign in with Google
+      </button>
+      <div class="pin-error" id="authError" style="display:none;"></div>
+      <button class="text-btn" id="signOutBtn" style="display:none;" onclick="signOutGoogle()">Use a different account</button>
+    </div>
+  </div>
 
   <!-- PIN GATE -->
   <div id="pinGate">
@@ -415,20 +450,16 @@
 // =============================================================
 // FAMILY ID HELPER — Multi-family support
 // =============================================================
-function getFamilyId() {
-  const params = new URLSearchParams(window.location.search);
-  let fid = params.get('f');
+function getFamilyIdFromUrlOrStorage() {
+  const fid = new URLSearchParams(window.location.search).get('f');
   if (fid) {
     localStorage.setItem('familyId', fid);
     return fid;
   }
-  fid = localStorage.getItem('familyId');
-  if (fid) return fid;
-  window.location.href = 'index.html';
-  return null;
+  return localStorage.getItem('familyId') || null;
 }
 
-const familyId = getFamilyId();
+let familyId = null;
 
 // ===== FIREBASE CONFIG =====
 const firebaseConfig = {
@@ -440,7 +471,7 @@ const firebaseConfig = {
   appId: "1:374643848407:web:642a57af25f97f037cec92"
 };
 
-let db, familyRef;
+let db, auth, familyRef;
 let familyData = {};
 let profile = {};
 let chores = [];
@@ -449,29 +480,79 @@ let pinBuffer = '';
 let pinFirst = '';
 
 // ===== INIT =====
+function showAuthGate(msg, allowSwitch) {
+  document.getElementById('pinGate').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('authGate').style.display = 'flex';
+  const err = document.getElementById('authError');
+  if (msg) { err.textContent = msg; err.style.display = 'block'; }
+  else { err.style.display = 'none'; }
+  document.getElementById('signOutBtn').style.display = allowSwitch ? 'block' : 'none';
+}
+
+function showPinGate() {
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('pinGate').style.display = 'flex';
+}
+
+function signInGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithRedirect(provider);
+}
+
+function signOutGoogle() {
+  localStorage.removeItem('familyId');
+  auth.signOut();
+}
+
+async function findFamilyIdByEmail(email) {
+  for (const e of [email, (email || '').toLowerCase()]) {
+    if (!e) continue;
+    const snap = await db.collection('families').where('parentEmail', '==', e).limit(1).get();
+    if (!snap.empty) return snap.docs[0].id;
+  }
+  return null;
+}
+
 async function init() {
-  if (!familyId) return;
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
-  familyRef = db.collection('families').doc(familyId);
+  auth = firebase.auth();
   try { await db.enablePersistence(); } catch(e) {}
+  auth.getRedirectResult().catch(e => showAuthGate(e.message, true));
 
-  const famDoc = await familyRef.get();
-  if (!famDoc.exists) {
-    localStorage.removeItem('familyId');
-    window.location.href = 'index.html';
-    return;
-  }
-  familyData = famDoc.data();
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) { showAuthGate(); return; }
 
-  // Update kid app link
-  document.getElementById('kidAppLink').href = 'app.html?f=' + familyId;
+    let fid = getFamilyIdFromUrlOrStorage();
+    if (!fid) fid = await findFamilyIdByEmail(user.email);
+    if (!fid) {
+      showAuthGate('No family found for ' + user.email + '. Sign in with the email you used at signup.', true);
+      return;
+    }
 
-  if (!familyData.pinHash) {
-    pinMode = 'create';
-    document.getElementById('pinTitle').textContent = 'Create a PIN';
-    document.getElementById('pinSubtitle').textContent = 'Choose a 4-digit parent PIN';
-  }
+    familyId = fid;
+    localStorage.setItem('familyId', familyId);
+    familyRef = db.collection('families').doc(familyId);
+
+    const famDoc = await familyRef.get();
+    if (!famDoc.exists) {
+      localStorage.removeItem('familyId');
+      showAuthGate('That family record no longer exists.', true);
+      return;
+    }
+    familyData = famDoc.data();
+
+    document.getElementById('kidAppLink').href = 'app.html?f=' + familyId;
+
+    if (!familyData.pinHash) {
+      pinMode = 'create';
+      document.getElementById('pinTitle').textContent = 'Create a PIN';
+      document.getElementById('pinSubtitle').textContent = 'Choose a 4-digit parent PIN';
+    }
+
+    showPinGate();
+  });
 }
 
 // ===== PIN =====

@@ -8,6 +8,7 @@
   <title>Kid Login — Morning Chores</title>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
   <style>
     :root {
       --primary: #667eea;
@@ -212,78 +213,25 @@
 <body>
   <div class="container">
 
-    <!-- Screen 1: Enter Last Name -->
-    <div class="screen visible" id="nameScreen">
+    <!-- Sign in -->
+    <div class="screen visible" id="signInScreen">
       <div style="text-align:center;">
-        <div class="hero-emoji">👋</div>
-        <h1 class="hero-title">Hi there!</h1>
-        <p class="hero-subtitle">What's your family last name?</p>
+        <div class="hero-emoji">⭐</div>
+        <h1 class="hero-title">Morning Chores</h1>
+        <p class="hero-subtitle">Have a grown-up sign in to start</p>
       </div>
 
       <div class="login-card">
-        <div class="login-card-title">Last Name</div>
-        <div class="login-card-sub">Ask your parent if you're not sure</div>
-        <input type="text" class="name-input" id="lastNameInput" placeholder="e.g. Smith" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
-        <button class="go-btn" id="nameBtn" onclick="submitLastName()">Next</button>
-        <div class="loading-spinner" id="nameSpinner"></div>
-        <div class="error-msg" id="nameError"></div>
+        <div class="login-card-title">Parent Sign-In</div>
+        <div class="login-card-sub">Sign in with the Google account you used at signup</div>
+        <button class="go-btn" id="signInBtn" onclick="signInGoogle()">Sign in with Google</button>
+        <div class="loading-spinner" id="signInSpinner"></div>
+        <div class="error-msg" id="signInError"></div>
+        <a id="switchAccount" style="display:none;cursor:pointer;font-size:13px;color:#888;text-decoration:underline;" onclick="signOutGoogle()">Use a different account</a>
       </div>
 
       <div class="back-link">
         <a href="index.html">&larr; Back to home</a>
-      </div>
-    </div>
-
-    <!-- Screen 2: Enter PIN -->
-    <div class="screen" id="pinScreen">
-      <div style="text-align:center;">
-        <div class="hero-emoji">🔒</div>
-        <h1 class="hero-title">Enter PIN</h1>
-        <p class="hero-subtitle">Type your 4-digit parent PIN</p>
-      </div>
-
-      <div class="login-card">
-        <div class="pin-dots">
-          <div class="pin-dot" id="d0"></div>
-          <div class="pin-dot" id="d1"></div>
-          <div class="pin-dot" id="d2"></div>
-          <div class="pin-dot" id="d3"></div>
-        </div>
-        <div class="pin-pad">
-          <button class="pin-key" onclick="pinPress('1')">1</button>
-          <button class="pin-key" onclick="pinPress('2')">2</button>
-          <button class="pin-key" onclick="pinPress('3')">3</button>
-          <button class="pin-key" onclick="pinPress('4')">4</button>
-          <button class="pin-key" onclick="pinPress('5')">5</button>
-          <button class="pin-key" onclick="pinPress('6')">6</button>
-          <button class="pin-key" onclick="pinPress('7')">7</button>
-          <button class="pin-key" onclick="pinPress('8')">8</button>
-          <button class="pin-key" onclick="pinPress('9')">9</button>
-          <button class="pin-key" disabled></button>
-          <button class="pin-key" onclick="pinPress('0')">0</button>
-          <button class="pin-key back" onclick="pinBack()">&#9003;</button>
-        </div>
-        <div class="loading-spinner" id="pinSpinner"></div>
-        <div class="error-msg" id="pinError"></div>
-      </div>
-
-      <div class="back-link">
-        <a onclick="goBackToName()">&#8592; Try a different name</a>
-      </div>
-    </div>
-
-    <!-- Screen 3: Pick Your Kid -->
-    <div class="screen" id="kidScreen">
-      <div style="text-align:center;">
-        <div class="hero-emoji">🎉</div>
-        <h1 class="hero-title">Who's here?</h1>
-        <p class="hero-subtitle">Tap your name to jump in!</p>
-      </div>
-
-      <div class="kid-grid" id="kidGrid"></div>
-
-      <div class="back-link">
-        <a onclick="goBackToName()">&#8592; Go back</a>
       </div>
     </div>
 
@@ -302,161 +250,60 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
 
-let familyDocs = []; // all docs matching lastNameLower
-let matchedKids = []; // docs matching lastNameLower + pinHash
-let pinBuffer = '';
-
-// Enter key on last name input
-document.getElementById('lastNameInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') submitLastName();
-});
-
-// --- Screen navigation ---
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
-  document.getElementById(id).classList.add('visible');
+function signInGoogle() {
+  document.getElementById('signInError').classList.remove('visible');
+  document.getElementById('signInSpinner').classList.add('visible');
+  auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
 }
 
-// --- Screen 1: Last Name ---
-async function submitLastName() {
-  const input = document.getElementById('lastNameInput').value.trim();
-  const errorEl = document.getElementById('nameError');
-  const spinner = document.getElementById('nameSpinner');
-  const btn = document.getElementById('nameBtn');
+function signOutGoogle() {
+  localStorage.removeItem('familyId');
+  auth.signOut();
+}
 
-  errorEl.classList.remove('visible');
+async function findFamilyIdByEmail(email) {
+  for (const e of [email, (email || '').toLowerCase()]) {
+    if (!e) continue;
+    const snap = await db.collection('families').where('parentEmail', '==', e).limit(1).get();
+    if (!snap.empty) return snap.docs[0].id;
+  }
+  return null;
+}
 
-  if (!input) {
-    errorEl.textContent = 'Please enter your last name.';
-    errorEl.classList.add('visible');
+function showSignInError(msg) {
+  const el = document.getElementById('signInError');
+  el.textContent = msg;
+  el.classList.add('visible');
+  document.getElementById('signInSpinner').classList.remove('visible');
+  document.getElementById('signInBtn').disabled = false;
+  document.getElementById('switchAccount').style.display = 'inline-block';
+}
+
+auth.getRedirectResult().catch(e => showSignInError(e.message));
+
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    document.getElementById('signInSpinner').classList.remove('visible');
     return;
   }
 
-  btn.disabled = true;
-  spinner.classList.add('visible');
+  document.getElementById('signInSpinner').classList.add('visible');
+  document.getElementById('signInBtn').disabled = true;
 
   try {
-    const snap = await db.collection('families')
-      .where('lastNameLower', '==', input.toLowerCase())
-      .get();
-
-    if (snap.empty) {
-      errorEl.textContent = "We couldn't find that family name. Try again!";
-      errorEl.classList.add('visible');
-      document.getElementById('lastNameInput').classList.add('shake');
-      setTimeout(() => document.getElementById('lastNameInput').classList.remove('shake'), 400);
-      btn.disabled = false;
-      spinner.classList.remove('visible');
+    const fid = await findFamilyIdByEmail(user.email);
+    if (!fid) {
+      showSignInError('No family found for ' + user.email + '. Ask a grown-up to sign in with the email used at signup.');
       return;
     }
-
-    familyDocs = snap.docs;
-    pinBuffer = '';
-    updateDots();
-    showScreen('pinScreen');
-
+    localStorage.setItem('familyId', fid);
+    window.location.href = 'app.html?f=' + fid;
   } catch (e) {
-    console.error('Lookup failed:', e);
-    errorEl.textContent = 'Something went wrong. Please try again.';
-    errorEl.classList.add('visible');
+    showSignInError('Something went wrong. Please try again.');
   }
-
-  btn.disabled = false;
-  spinner.classList.remove('visible');
-}
-
-// --- Screen 2: PIN ---
-async function hashPin(pin) {
-  const data = new TextEncoder().encode(pin);
-  const buf = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
-function updateDots() {
-  for (let i = 0; i < 4; i++) {
-    const dot = document.getElementById('d' + i);
-    dot.className = 'pin-dot' + (i < pinBuffer.length ? ' filled' : '');
-  }
-}
-
-function pinPress(digit) {
-  if (pinBuffer.length >= 4) return;
-  pinBuffer += digit;
-  updateDots();
-  if (pinBuffer.length === 4) setTimeout(submitPin, 200);
-}
-
-function pinBack() {
-  pinBuffer = pinBuffer.slice(0, -1);
-  updateDots();
-  document.getElementById('pinError').classList.remove('visible');
-}
-
-async function submitPin() {
-  const spinner = document.getElementById('pinSpinner');
-  const errorEl = document.getElementById('pinError');
-  errorEl.classList.remove('visible');
-  spinner.classList.add('visible');
-
-  const hashed = await hashPin(pinBuffer);
-
-  matchedKids = familyDocs.filter(d => d.data().pinHash === hashed);
-
-  spinner.classList.remove('visible');
-
-  if (matchedKids.length === 0) {
-    errorEl.textContent = 'Wrong PIN. Try again!';
-    errorEl.classList.add('visible');
-    for (let i = 0; i < 4; i++) document.getElementById('d' + i).classList.add('error');
-    setTimeout(() => {
-      for (let i = 0; i < 4; i++) document.getElementById('d' + i).classList.remove('error');
-    }, 600);
-    pinBuffer = '';
-    updateDots();
-    return;
-  }
-
-  // Single kid → auto-load
-  if (matchedKids.length === 1) {
-    selectKid(matchedKids[0].id);
-    return;
-  }
-
-  // Multiple kids → show picker
-  renderKidPicker();
-  showScreen('kidScreen');
-}
-
-// --- Screen 3: Kid Picker ---
-function renderKidPicker() {
-  const grid = document.getElementById('kidGrid');
-  grid.innerHTML = matchedKids.map(doc => {
-    const data = doc.data();
-    const name = data.childName || 'Kid';
-    const initial = name.charAt(0).toUpperCase();
-    return '<div class="kid-card" onclick="selectKid(\'' + doc.id + '\')">' +
-      '<div class="kid-avatar">' + initial + '</div>' +
-      '<div class="kid-name">' + name + '</div>' +
-      '</div>';
-  }).join('');
-}
-
-function selectKid(familyId) {
-  localStorage.setItem('familyId', familyId);
-  window.location.href = 'app.html?f=' + familyId;
-}
-
-// --- Navigation ---
-function goBackToName() {
-  familyDocs = [];
-  matchedKids = [];
-  pinBuffer = '';
-  document.getElementById('lastNameInput').value = '';
-  document.getElementById('nameError').classList.remove('visible');
-  document.getElementById('pinError').classList.remove('visible');
-  showScreen('nameScreen');
-}
+});
 </script>
 </body>
 </html>
