@@ -166,7 +166,8 @@ const auth = firebase.auth();
 
 function signInGoogle() {
   document.getElementById('pinError').style.display = 'none';
-  auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+    .catch(e => showAuthError(e.message));
 }
 
 function signOutGoogle() {
@@ -179,8 +180,6 @@ function showAuthError(msg) {
   el.style.display = 'block';
   document.getElementById('signOutBtn').style.display = 'block';
 }
-
-auth.getRedirectResult().catch(e => showAuthError(e.message));
 
 auth.onAuthStateChanged((user) => {
   if (!user) {

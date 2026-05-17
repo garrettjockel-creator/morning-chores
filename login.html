@@ -255,7 +255,8 @@ const auth = firebase.auth();
 function signInGoogle() {
   document.getElementById('signInError').classList.remove('visible');
   document.getElementById('signInSpinner').classList.add('visible');
-  auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+    .catch(e => showSignInError(e.message));
 }
 
 function signOutGoogle() {
@@ -280,8 +281,6 @@ function showSignInError(msg) {
   document.getElementById('signInBtn').disabled = false;
   document.getElementById('switchAccount').style.display = 'inline-block';
 }
-
-auth.getRedirectResult().catch(e => showSignInError(e.message));
 
 auth.onAuthStateChanged(async (user) => {
   if (!user) {

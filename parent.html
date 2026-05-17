@@ -496,8 +496,8 @@ function showPinGate() {
 }
 
 function signInGoogle() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithRedirect(provider);
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+    .catch(e => showAuthGate(e.message, true));
 }
 
 function signOutGoogle() {
@@ -519,7 +519,6 @@ async function init() {
   db = firebase.firestore();
   auth = firebase.auth();
   try { await db.enablePersistence(); } catch(e) {}
-  auth.getRedirectResult().catch(e => showAuthGate(e.message, true));
 
   auth.onAuthStateChanged(async (user) => {
     if (!user) { showAuthGate(); return; }
