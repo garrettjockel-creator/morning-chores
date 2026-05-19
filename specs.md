@@ -174,8 +174,11 @@ Four tabs: **Chores**, **Rewards**, **Chat**, **Activities**.
 - Chore manager: add / edit / enable / disable chores.
 - Goals: add and track goals.
 - Rewards editor: manage the reward catalog.
-- Activities manager and family settings (child name, XP per chore,
-  victory song URL, silly voice, parent PIN).
+- Activities manager: the full activity list (after seeding) grouped
+  into collapsible category sections, collapsed by default with item
+  counts; expand a category to add/remove its activities.
+- Family settings (child name, XP per chore, victory song URL, silly
+  voice, parent PIN).
 - **Customize with AI:** a plain-English chat that turns parent requests
   into changes without using the manual forms (see below).
 
