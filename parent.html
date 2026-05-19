@@ -715,6 +715,10 @@ async function loadDashData() {
   const activities = aSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   activitiesList = activities;
 
+  // Custom stories (Bible / Jesus / Draw extras for the kid app)
+  const sSnap = await familyRef.collection('stories').get();
+  storiesList = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
   renderStats(completions, days);
   renderChart(completions, days);
   renderChoreManager();
@@ -958,6 +962,7 @@ async function deleteReward(id) {
 
 // ===== ACTIVITY CRUD =====
 let activitiesList = [];
+let storiesList = [];
 
 function renderActivitiesManager(activities) {
   const el = document.getElementById('activitiesManager');
@@ -1029,7 +1034,7 @@ function aiLogAppend(html) {
   return div;
 }
 
-const AI_CONFIRM_TYPES = ['delete_chore', 'delete_reward', 'delete_goal', 'delete_activity'];
+const AI_CONFIRM_TYPES = ['delete_chore', 'delete_reward', 'delete_goal', 'delete_activity', 'delete_story'];
 function aiNeedsConfirm(a) {
   return AI_CONFIRM_TYPES.includes(a.type) ||
     (a.type === 'update_chore' && a.active === false);
@@ -1062,6 +1067,7 @@ async function sendParentAI() {
           rewards: rewardsList,
           goals: goalTexts,
           activities: activitiesList,
+          stories: storiesList,
           settings: {
             childName: familyData.childName || '',
             xpPerChore: familyData.xpPerChore || 10,
@@ -1119,6 +1125,7 @@ function aiDescribe(a) {
   if (a.type === 'delete_reward') return 'Delete reward "' + a.match + '"';
   if (a.type === 'delete_goal') return 'Delete goal "' + a.match + '"';
   if (a.type === 'delete_activity') return 'Delete activity "' + a.match + '"';
+  if (a.type === 'delete_story') return 'Delete story "' + a.match + '"';
   if (a.type === 'update_chore' && a.active === false) return 'Disable chore "' + a.match + '"';
   return a.type;
 }
@@ -1237,6 +1244,30 @@ async function applyAiActions(actions) {
         if (!act) { summary.push('no activity matching "' + a.match + '"'); continue; }
         await familyRef.collection('activities').doc(act.id).delete();
         summary.push('deleted activity "' + act.name + '"');
+      } else if (a.type === 'add_story' && a.title && a.text) {
+        const okTypes = ['bible','jesus','draw'];
+        const st = okTypes.includes(a.storyType) ? a.storyType : 'bible';
+        await familyRef.collection('stories').doc().set({
+          type: st,
+          title: String(a.title).trim(),
+          text: String(a.text).trim(),
+        });
+        summary.push('added ' + st + ' story "' + a.title + '"');
+      } else if (a.type === 'update_story') {
+        const okTypes = ['bible','jesus','draw'];
+        const st = storiesList.find(s => String(s.title || '').trim().toLowerCase() === String(a.match || '').trim().toLowerCase());
+        if (!st) { summary.push('no story matching "' + a.match + '"'); continue; }
+        const fields = {};
+        if (a.title != null) fields.title = String(a.title).trim();
+        if (a.text != null) fields.text = String(a.text).trim();
+        if (okTypes.includes(a.storyType)) fields.type = a.storyType;
+        if (Object.keys(fields).length) await familyRef.collection('stories').doc(st.id).update(fields);
+        summary.push('updated story "' + (fields.title || st.title) + '"');
+      } else if (a.type === 'delete_story') {
+        const st = storiesList.find(s => String(s.title || '').trim().toLowerCase() === String(a.match || '').trim().toLowerCase());
+        if (!st) { summary.push('no story matching "' + a.match + '"'); continue; }
+        await familyRef.collection('stories').doc(st.id).delete();
+        summary.push('deleted story "' + st.title + '"');
       } else if (a.type === 'set_setting') {
         const allowed = ['childName','xpPerChore','victorySongUrl','sillyVoiceEnabled'];
         if (!allowed.includes(a.key)) { summary.push('setting "' + a.key + '" not allowed'); continue; }
@@ -1340,6 +1371,7 @@ init();
       <button class="ai-chip" onclick="aiChip('change the  reward to cost  points')">💲 Edit reward</button>
       <button class="ai-chip" onclick="aiChip('add a goal: ')">🎯 Add goal</button>
       <button class="ai-chip" onclick="aiChip('add a screen-free activity idea called ')">💡 Add idea</button>
+      <button class="ai-chip" onclick="aiChip('add a Bible story about ')">📖 Add story</button>
       <button class="ai-chip" onclick="aiChip('change the child name to ')">⚙️ Settings</button>
       <button class="ai-chip" onclick="aiHelp()">❓ What can you do?</button>
     </div>
@@ -1381,6 +1413,7 @@ function aiHelp() {
     '<li>Add, edit, or remove <strong>rewards</strong> (name, emoji, point cost)</li>' +
     '<li>Add or remove <strong>goals</strong></li>' +
     '<li>Add, edit, or remove screen-free <strong>activity ideas</strong> (name, emoji, tags)</li>' +
+    '<li>Add more <strong>Bible stories, Jesus facts, or drawing prompts</strong> shown in the kid app</li>' +
     '<li>Change <strong>settings</strong>: child name, points per chore, victory song, silly voice</li>' +
     '</ul>' +
     '<div style="margin-top:8px;color:#888;">Try: "add an evening chore to feed the dog worth 15 points" or "make the ice cream reward cost 300". Deletes and disabling a chore will ask you to confirm first.</div>' +

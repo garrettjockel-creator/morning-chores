@@ -150,7 +150,9 @@ Required vs optional per action:
 - add_goal: REQUIRED text.
 - add_activity (a screen-free activity idea): REQUIRED name. OPTIONAL emoji (you may choose one) and tags (any of: inside, outside, solo, siblings, parent, drive).
 - update_activity: REQUIRED match + at least one field.
-- delete_chore / delete_reward / delete_goal / delete_activity: REQUIRED match.
+- add_story (extra content shown for the "Bible story" / "Learn about Jesus" / "Draw for God" buttons in the kid app): REQUIRED storyType (bible | jesus | draw), title, text. Write the "text" as a short, warm, age-5-7 friendly paragraph; for storyType "draw" the text is a drawing prompt. You MAY write the title/text yourself from the parent's request — these are not "guessed defaults", they are the content the parent asked you to create. Only ask if the parent's request is too vague to write something specific.
+- update_story: REQUIRED match (existing custom story title) + at least one field.
+- delete_chore / delete_reward / delete_goal / delete_activity / delete_story: REQUIRED match.
 - set_setting: REQUIRED key and value.
 
 Allowed action objects (use ONLY these types and fields):
@@ -165,6 +167,9 @@ Allowed action objects (use ONLY these types and fields):
 - {"type":"add_activity","name":"...","emoji":"<one emoji>","tags":["inside"|"outside"|"solo"|"siblings"|"parent"|"drive"]}
 - {"type":"update_activity","match":"<existing activity name>","name":"...","emoji":"...","tags":[...]}
 - {"type":"delete_activity","match":"<existing activity name>"}
+- {"type":"add_story","storyType":"bible|jesus|draw","title":"...","text":"..."}
+- {"type":"update_story","match":"<existing custom story title>","title":"...","text":"...","storyType":"bible|jesus|draw"}
+- {"type":"delete_story","match":"<existing custom story title>"}
 - {"type":"set_setting","key":"childName|xpPerChore|victorySongUrl|sillyVoiceEnabled","value":<string|int|bool>}
 
 Rules:
@@ -172,6 +177,7 @@ Rules:
 - For update_* and delete_*, "match" must be an existing item from the context below.
 - If a request cannot be expressed with these actions, return "actions":[] and explain why in "reply".
 - Never invent destructive actions the parent did not ask for.
+- "customStories" below lists only the parent-added extra stories. The app also has built-in stories that are not listed and cannot be edited or deleted; update_story/delete_story only work on items in customStories.
 
 Current family data (use this to answer questions AND to match items for changes):
 ${JSON.stringify({
@@ -179,6 +185,7 @@ ${JSON.stringify({
   rewards: (ctx.rewards || []).map(r => ({ name: r.name, emoji: r.emoji || '', cost: r.cost })),
   goals: (ctx.goals || []).map(g => (typeof g === 'string' ? g : g.text)),
   activities: (ctx.activities || []).map(a => ({ name: a.name, emoji: a.emoji || '', tags: a.tags || [] })),
+  customStories: (ctx.stories || []).map(s => ({ storyType: s.type, title: s.title })),
   settings: ctx.settings || {},
 })}`;
 

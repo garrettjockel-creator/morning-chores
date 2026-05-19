@@ -968,6 +968,18 @@ function getAllActivities() {
   return DEFAULT_ACTIVITIES.concat(customActivities);
 }
 
+// Parent-added stories, merged with the built-in lists below
+let customStories = [];
+function getStoryPool(type) {
+  const base = type === 'bible' ? BIBLE_STORIES
+    : type === 'jesus' ? JESUS_FACTS
+    : type === 'draw' ? DRAW_PROMPTS : [];
+  const extra = customStories
+    .filter(s => s.type === type && s.title && s.text)
+    .map(s => ({ title: s.title, text: s.text }));
+  return base.concat(extra);
+}
+
 const BIBLE_STORIES = [
   { title: 'David and Goliath', text: 'A young boy named David trusted God and defeated a giant named Goliath with just a sling and a stone. God can help us be brave even when things seem scary! (1 Samuel 17)' },
   { title: 'Noah\'s Ark', text: 'God told Noah to build a big boat and put two of every animal on it. It rained for 40 days, but God kept Noah and all the animals safe. God always keeps His promises! (Genesis 6-9)' },
@@ -1839,6 +1851,13 @@ async function loadCustomActivities() {
   } catch (e) { customActivities = []; }
 }
 
+async function loadCustomStories() {
+  try {
+    const snap = await familyRef.collection('stories').get();
+    customStories = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { customStories = []; }
+}
+
 async function loadRewards() {
   try {
     let snap = await familyRef.collection('rewards').orderBy('cost').get();
@@ -2002,10 +2021,8 @@ function setFilter(id) {
 }
 
 function showActivityDetail(type) {
-  let item;
-  if (type === 'bible') item = BIBLE_STORIES[Math.floor(Math.random() * BIBLE_STORIES.length)];
-  else if (type === 'jesus') item = JESUS_FACTS[Math.floor(Math.random() * JESUS_FACTS.length)];
-  else if (type === 'draw') item = DRAW_PROMPTS[Math.floor(Math.random() * DRAW_PROMPTS.length)];
+  const pool = getStoryPool(type);
+  const item = pool[Math.floor(Math.random() * pool.length)];
   if (!item) return;
   document.getElementById('actDetailEmoji').textContent = type === 'bible' ? '📖' : type === 'jesus' ? '❤️' : '🎨';
   document.getElementById('actDetailTitle').textContent = item.title;
@@ -2391,7 +2408,7 @@ async function init() {
     await initFirebase();
     await loadFamilyData();
     await Promise.all([loadProfile(), loadChores()]);
-    await Promise.all([loadToday(), loadGoals(), loadRewards(), loadCustomActivities(), loadYesterdayData()]);
+    await Promise.all([loadToday(), loadGoals(), loadRewards(), loadCustomActivities(), loadCustomStories(), loadYesterdayData()]);
     checkStreakOnLoad();
 
     // Apply saved theme (or default)
