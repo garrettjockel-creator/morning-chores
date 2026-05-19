@@ -75,6 +75,9 @@ families/{familyId}
   xpPerChore              (default 10)
   kidOnboardingComplete   (bool)
   kidTheme, victorySongUrl (optional)
+  chatEnabled, sillyVoiceEnabled (bool)
+  activitiesSeeded        (bool — built-in activities copied into the
+                           activities subcollection once for this family)
   createdAt               (ISO string)
 
   profile/main
@@ -96,11 +99,30 @@ families/{familyId}
     emoji, name, cost
 
   goals/{goalId}
-    (created/ordered by createdAt)
+    text, completed, createdAt
+
+  activities/{activityId}
+    name, emoji, tags[]   (inside|outside|solo|siblings|parent|drive)
+    tap (optional: "bible" | "jesus" | "draw" for the special cards)
+
+  stories/{storyId}
+    type ("bible" | "jesus" | "draw"), title, text
+    (parent-added; merged with the built-in lists in the kid app)
 
   reflections/{YYYY-MM-DD}
     (daily kid reflection / journal entry)
 ```
+
+**Activity list source of truth:** the kid app's ~50 built-in
+activities are seeded into each family's `activities` subcollection
+**once** (gated by the `activitiesSeeded` family-doc flag, so existing
+families keep any custom activities and nothing is duplicated). After
+that the subcollection is the single source — the kid app reads only
+from it, and the parent dashboard + AI Helper can see, edit, and delete
+the full list. Seeding runs on kid-app load (where the default list
+lives); a brand-new family that has never opened the kid app will show
+an empty activities list in the parent dashboard until the kid app
+runs once.
 
 ## Features
 
