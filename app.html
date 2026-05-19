@@ -1759,8 +1759,13 @@ async function toggleChore(choreId) {
     }
   }
 
-  await Promise.all([saveProfile(), saveToday()]);
   renderChores(); updateTopBar(); updateProgress();
+
+  try {
+    await Promise.all([saveProfile(), saveToday()]);
+  } catch (e) {
+    console.error('Failed to save chore completion:', e);
+  }
 }
 
 // ===== RENDERING =====
