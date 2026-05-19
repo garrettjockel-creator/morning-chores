@@ -269,15 +269,6 @@
       </div>
     </div>
 
-    <!-- Customize with AI -->
-    <div class="section">
-      <h3>Customize with AI</h3>
-      <p style="font-size:13px;color:#888;margin:-4px 0 10px;">Describe a change in plain English — e.g. "add an evening chore to feed the dog worth 15 points" or "make the ice cream reward cost 300".</p>
-      <div id="aiLog" style="max-height:260px;overflow-y:auto;margin-bottom:10px;"></div>
-      <textarea id="aiPrompt" rows="2" placeholder="What would you like to change?" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>
-      <button class="btn-add" id="aiSendBtn" onclick="sendParentAI()" style="margin-top:8px;">Send</button>
-    </div>
-
     <!-- 30-Day Chart -->
     <div class="section">
       <h3>Last 30 Days</h3>
@@ -493,6 +484,7 @@ function showAuthGate(msg, allowSwitch) {
   document.getElementById('pinGate').style.display = 'none';
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('authGate').style.display = 'flex';
+  const w = document.getElementById('aiWidget'); if (w) w.style.display = 'none';
   const err = document.getElementById('authError');
   if (msg) { err.textContent = msg; err.style.display = 'block'; }
   else { err.style.display = 'none'; }
@@ -502,6 +494,7 @@ function showAuthGate(msg, allowSwitch) {
 function showPinGate() {
   document.getElementById('authGate').style.display = 'none';
   document.getElementById('pinGate').style.display = 'flex';
+  const w = document.getElementById('aiWidget'); if (w) w.style.display = 'none';
 }
 
 function signInGoogle() {
@@ -643,6 +636,7 @@ function showPinError(msg) {
 async function showDashboard() {
   document.getElementById('pinGate').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('aiWidget').style.display = 'block';
 
   // Set up QR code pointing to login page
   const loginUrl = 'https://garrettjockel-creator.github.io/morning-chores/login.html';
@@ -1250,5 +1244,122 @@ async function saveSettings() {
 
 init();
 </script>
+
+<!-- ===== FLOATING AI HELPER ===== -->
+<style>
+  #aiWidget { display: none; }
+  #aiFab {
+    position: fixed; right: 20px; bottom: 20px; z-index: 9000;
+    width: 60px; height: 60px; border-radius: 50%; border: none;
+    background: linear-gradient(135deg, #667eea, #764ba2); color: white;
+    font-size: 26px; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #aiFab:active { transform: scale(0.94); }
+  #aiPanel {
+    position: fixed; right: 20px; bottom: 90px; z-index: 9001;
+    width: 380px; max-width: calc(100vw - 32px);
+    height: 560px; max-height: calc(100vh - 130px);
+    background: white; border-radius: 18px; overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    display: none; flex-direction: column;
+  }
+  #aiPanel.open { display: flex; }
+  .ai-head {
+    background: linear-gradient(135deg, #667eea, #764ba2); color: white;
+    padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .ai-head h3 { font-size: 16px; margin: 0; }
+  .ai-head .ai-sub { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+  .ai-close { background: none; border: none; color: white; font-size: 22px; cursor: pointer; line-height: 1; }
+  #aiLog { flex: 1; overflow-y: auto; padding: 14px; background: #f7f7fb; }
+  .ai-chips { padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px solid #eee; background: #fff; }
+  .ai-chip {
+    background: #eef0ff; color: #4a4fc0; border: none; border-radius: 14px;
+    padding: 6px 11px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .ai-chip:active { background: #dfe2ff; }
+  .ai-input-row { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #eee; background: #fff; }
+  #aiPrompt {
+    flex: 1; padding: 10px 12px; border: 1px solid #ddd; border-radius: 12px;
+    font-size: 14px; font-family: inherit; resize: none; max-height: 90px;
+  }
+  #aiSendBtn {
+    background: #667eea; color: white; border: none; border-radius: 12px;
+    padding: 0 16px; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  #aiSendBtn:disabled { opacity: 0.5; cursor: default; }
+</style>
+<div id="aiWidget">
+  <button id="aiFab" onclick="toggleAiChat()" title="AI Helper" aria-label="Open AI Helper">✨</button>
+  <div id="aiPanel">
+    <div class="ai-head">
+      <div>
+        <h3>AI Helper</h3>
+        <div class="ai-sub">Make changes by just asking</div>
+      </div>
+      <button class="ai-close" onclick="closeAiChat()" aria-label="Close">&times;</button>
+    </div>
+    <div id="aiLog"></div>
+    <div class="ai-chips" id="aiChips">
+      <button class="ai-chip" onclick="aiChip('add a morning chore called  worth 10 points')">➕ Add chore</button>
+      <button class="ai-chip" onclick="aiChip('change the  chore to be worth  points')">✏️ Edit chore</button>
+      <button class="ai-chip" onclick="aiChip('add a reward called  for  points')">🎁 Add reward</button>
+      <button class="ai-chip" onclick="aiChip('change the  reward to cost  points')">💲 Edit reward</button>
+      <button class="ai-chip" onclick="aiChip('add a goal: ')">🎯 Add goal</button>
+      <button class="ai-chip" onclick="aiChip('change the child name to ')">⚙️ Settings</button>
+      <button class="ai-chip" onclick="aiHelp()">❓ What can you do?</button>
+    </div>
+    <div class="ai-input-row">
+      <textarea id="aiPrompt" rows="1" placeholder="Ask me to change something…"></textarea>
+      <button id="aiSendBtn" onclick="sendParentAI()">Send</button>
+    </div>
+  </div>
+</div>
+<script>
+function toggleAiChat() {
+  const p = document.getElementById('aiPanel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open')) {
+    if (!document.getElementById('aiLog').dataset.greeted) {
+      aiHelp();
+      document.getElementById('aiLog').dataset.greeted = '1';
+    }
+    document.getElementById('aiPrompt').focus();
+  }
+}
+function closeAiChat() { document.getElementById('aiPanel').classList.remove('open'); }
+
+function aiChip(template) {
+  const t = document.getElementById('aiPrompt');
+  t.value = template;
+  t.focus();
+  const caret = template.indexOf('  ');
+  if (caret > -1) t.setSelectionRange(caret + 1, caret + 1);
+  else t.setSelectionRange(template.length, template.length);
+}
+
+function aiHelp() {
+  aiLogAppend(
+    '<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:10px;">' +
+    "<strong>Hi! I'm your AI Helper.</strong> Tell me what to change and I'll do it — no need to find the right screen. I can:" +
+    '<ul style="margin:8px 0 0 18px;padding:0;">' +
+    '<li>Add, edit, or remove <strong>chores</strong> (name, time of day, points)</li>' +
+    '<li>Add, edit, or remove <strong>rewards</strong> (name, emoji, point cost)</li>' +
+    '<li>Add or remove <strong>goals</strong></li>' +
+    '<li>Change <strong>settings</strong>: child name, points per chore, victory song, silly voice</li>' +
+    '</ul>' +
+    '<div style="margin-top:8px;color:#888;">Try: "add an evening chore to feed the dog worth 15 points" or "make the ice cream reward cost 300". Deletes and disabling a chore will ask you to confirm first.</div>' +
+    '</div>');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.target && e.target.id === 'aiPrompt' && e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendParentAI();
+  }
+});
+</script>
+
 </body>
 </html>
