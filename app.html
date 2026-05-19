@@ -965,7 +965,9 @@ const DEFAULT_ACTIVITIES = [
 ];
 
 function getAllActivities() {
-  return DEFAULT_ACTIVITIES.concat(customActivities);
+  // After one-time seeding, the Firestore collection IS the full list
+  // (defaults + custom), so the parent dashboard / AI see everything too.
+  return customActivities;
 }
 
 // Parent-added stories, merged with the built-in lists below
@@ -1846,9 +1848,28 @@ let kidGoals = [];
 
 async function loadCustomActivities() {
   try {
-    const snap = await familyRef.collection('activities').get();
+    let snap = await familyRef.collection('activities').get();
+    // One-time per family: copy the built-in defaults into Firestore so the
+    // parent dashboard and AI Helper can see/edit the full list. Gated by a
+    // flag (not emptiness) so existing families keep their custom ones too.
+    if (!familyData.activitiesSeeded) {
+      const batch = db.batch();
+      DEFAULT_ACTIVITIES.forEach(a => {
+        const doc = { name: a.name, emoji: a.emoji, tags: a.tags || [] };
+        if (a.tap) doc.tap = a.tap;
+        batch.set(familyRef.collection('activities').doc(), doc);
+      });
+      batch.set(familyRef, { activitiesSeeded: true }, { merge: true });
+      await batch.commit();
+      familyData.activitiesSeeded = true;
+      snap = await familyRef.collection('activities').get();
+    }
     customActivities = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { customActivities = []; }
+  } catch (e) {
+    // If Firestore is unreachable, fall back to the built-in list so the
+    // kid app still has activities to show.
+    customActivities = DEFAULT_ACTIVITIES.slice();
+  }
 }
 
 async function loadCustomStories() {
