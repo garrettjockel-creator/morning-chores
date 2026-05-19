@@ -849,7 +849,7 @@
       <div class="modal-subtitle" id="actDetailText" style="text-align:left;line-height:1.5;margin-top:10px;"></div>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
         <button class="modal-btn" onclick="closeModal('activityDetailModal')">Got it!</button>
-        <button class="modal-btn" id="actDetailBtn2" style="background:#22c55e;" onclick="showActivityDetail(document.getElementById('actDetailEmoji').textContent==='📖'?'bible':document.getElementById('actDetailEmoji').textContent==='❤️'?'jesus':'draw')">Another!</button>
+        <button class="modal-btn" id="actDetailBtn2" style="background:#22c55e;">Another!</button>
       </div>
     </div>
   </div>
@@ -2001,11 +2001,12 @@ function renderActivities() {
   html += '<div class="activity-grid">';
   getAllActivities().forEach(i => {
     const show = activeFilter === 'all' || i.tags.includes(activeFilter);
+    const safeName = i.name.replace(/'/g, "\\'");
     const tap = i.tap
       ? ' onclick="showActivityDetail(\'' + i.tap + '\')"'
-      : ' onclick="speak(\'' + i.name.replace(/'/g, "\\'") + '\', null)"';
-    const hint = i.tap ? '<div class="tap-hint">Tap me!</div>' : '';
-    html += '<div class="activity-card' + (i.tap ? ' tappable' : '') + (show ? '' : ' hidden') + '"' + tap + '>' +
+      : ' onclick="showActivityIdea(\'' + safeName + '\',\'' + i.emoji + '\')"';
+    const hint = '<div class="tap-hint">Tap me!</div>';
+    html += '<div class="activity-card tappable' + (show ? '' : ' hidden') + '"' + tap + '>' +
       '<div class="activity-emoji">' + i.emoji + '</div>' +
       '<div class="activity-name">' + i.name + '</div>' + hint + '</div>';
   });
@@ -2027,9 +2028,44 @@ function showActivityDetail(type) {
   document.getElementById('actDetailEmoji').textContent = type === 'bible' ? '📖' : type === 'jesus' ? '❤️' : '🎨';
   document.getElementById('actDetailTitle').textContent = item.title;
   document.getElementById('actDetailText').textContent = item.text;
-  document.getElementById('actDetailBtn2').style.display = 'inline-block';
+  const b2 = document.getElementById('actDetailBtn2');
+  b2.style.display = 'inline-block';
+  b2.textContent = 'Another!';
+  b2.onclick = function() { showActivityDetail(type); };
   document.getElementById('activityDetailModal').classList.add('visible');
   speak(item.title + '. ' + item.text);
+}
+
+// Generic activity → ask Helper for one concrete, kid-friendly idea
+async function showActivityIdea(name, emoji) {
+  document.getElementById('actDetailEmoji').textContent = emoji || '💡';
+  document.getElementById('actDetailTitle').textContent = name;
+  document.getElementById('actDetailText').textContent = 'Thinking of a fun idea…';
+  const b2 = document.getElementById('actDetailBtn2');
+  b2.style.display = 'inline-block';
+  b2.textContent = 'Another idea!';
+  b2.onclick = function() { showActivityIdea(name, emoji); };
+  document.getElementById('activityDetailModal').classList.add('visible');
+
+  let text;
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: 'Give ONE short, specific, fun idea for what a young child can actually do for this activity: "' + name + '". One or two simple sentences. Just the idea itself, no preamble or question.' }],
+        context: { name: familyData.childName || '', xp: profile.xp || 0, streak: profile.streak || 0 },
+      }),
+    });
+    const data = await res.json();
+    text = (data && typeof data.reply === 'string' && data.reply.trim())
+      ? data.reply.trim()
+      : ('Have fun with ' + name + '! Use your imagination!');
+  } catch (e) {
+    text = 'Have fun with ' + name + '! Use your imagination and be creative!';
+  }
+  document.getElementById('actDetailText').textContent = text;
+  speak(text);
 }
 
 function pickRandom() {
