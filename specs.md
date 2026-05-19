@@ -21,13 +21,15 @@ Target user: children roughly age 5–7, with a parent administering the account
   (popup flow). Used on the parent, kid-login, and admin pages.
 - **AI proxy:** A Cloudflare Worker (`worker.js`) proxies AI requests so API
   keys never reach the browser:
-  - Default chat endpoint → Anthropic Claude (`claude-3-haiku-20240307`) — kid Helper
-  - `/parent` endpoint → Anthropic Claude — parent customization (returns
-    strict JSON actions, not prose)
+  - Default chat endpoint → Anthropic Claude (`claude-haiku-4-5`) — kid Helper
+  - `/parent` endpoint → Anthropic Claude — parent customization
+    (returns strict JSON actions, not prose)
   - `/tts` endpoint → OpenAI text-to-speech (`tts-1`, voice `nova`)
   - Worker URL: `https://morning-chores-helper.gjockel.workers.dev`
-  - Deployed manually via the Cloudflare dashboard; must be redeployed
-    whenever `worker.js` changes.
+  - Deployed manually via the Cloudflare dashboard. The Worker is
+    intentionally **generic and stable** — see "Thin-proxy
+    architecture" below — so it rarely (ideally never) needs
+    redeploying once set up.
 - **Hosting:** GitHub Pages, repo `garrettjockel-creator/morning-chores`,
   served from the `main` branch at
   `https://garrettjockel-creator.github.io/morning-chores/`.
@@ -143,23 +145,50 @@ Four tabs: **Chores**, **Rewards**, **Chat**, **Activities**.
 - **Customize with AI:** a plain-English chat that turns parent requests
   into changes without using the manual forms (see below).
 
-### AI customization (parent dashboard)
-A parent types a natural-language request (e.g. "add an evening chore to
-feed the dog worth 15 points", "make the ice cream reward cost 300").
+### AI Helper (parent dashboard)
+A persistent floating chat widget (✨ launcher, bottom-right, only shown
+once the parent is signed in). It both **answers questions** about the
+current setup and **makes changes** conversationally — e.g. "add an
+evening chore to feed the dog worth 15 points", "what chores are set
+up?", "add a Bible story about Zacchaeus", "switch to the Steelers
+theme and give Sam 50 bonus points".
 
-- The browser sends the prompt plus the family's current chores, rewards,
-  goals, and settings to the Worker's `/parent` endpoint.
-- Claude returns a **strict JSON action list** (no free-form text writes).
-  Allowed actions: `add_chore`, `update_chore`, `delete_chore`,
-  `add_reward`, `update_reward`, `delete_reward`, `add_goal`,
-  `delete_goal`, `set_setting` (keys limited to `childName`,
-  `xpPerChore`, `victorySongUrl`, `sillyVoiceEnabled`).
+- It is conversational: if a request is missing required details it
+  asks follow-up questions and remembers the thread across turns.
+- The browser sends a client-built system prompt (the full action
+  schema + a JSON snapshot of the family's data) plus the conversation
+  to the Worker's `/parent` endpoint; Claude returns a **strict JSON
+  action list** (no free-form writes).
 - The client **validates every action against a whitelist** before
   writing to Firestore — arbitrary AI output is never executed.
-- **Add/edit** actions apply immediately. **Deletes and chore-disables**
-  require an explicit Apply/Cancel confirmation.
+- Supported actions: chores, rewards, goals (add/edit/complete/delete),
+  activity ideas, custom Bible/Jesus/Draw stories, points & streak
+  adjustments, kid theme, and settings (`childName`, `xpPerChore`,
+  `victorySongUrl`, `sillyVoiceEnabled`, `chatEnabled`, `kidTheme`).
+- **Add/edit** actions apply immediately. **Deletes, chore-disables,
+  and points/streak changes** require an explicit Apply/Cancel
+  confirmation.
 - Unmatched (`match` not found) or unknown actions are reported, not
   guessed at. Gated behind the parent's Google sign-in + parent PIN.
+- Custom stories are written to a `stories` subcollection and merged
+  with the built-in Bible/Jesus/Draw lists in the kid app.
+
+### Thin-proxy architecture (maintainability)
+The `/parent` Worker endpoint is a **generic pass-through**: it accepts
+`{ system, messages }`, forwards them to Claude, and returns the parsed
+JSON. It contains **no action schema or business logic**.
+
+The single source of truth for the AI's capabilities is
+`buildAiSystem()` in `parent.html`, which assembles the system prompt
+(action schema + live family-data snapshot). The matching write logic
+is `applyAiActions()` in the same file, with the confirm-required set
+in `AI_CONFIRM_TYPES`.
+
+Consequence for maintenance: **adding or changing an AI capability is a
+`parent.html` edit + a normal `git push` only — the Worker never needs
+redeploying.** To add a capability: (1) add the action to the schema
+text in `buildAiSystem()`, (2) add its handler in `applyAiActions()`,
+(3) if destructive, add its type to `AI_CONFIRM_TYPES`, (4) push.
 
 ### Admin portal (`admin.html`)
 - Lists every family with child name, parent name/email.
@@ -192,9 +221,11 @@ match /families/{familyId} {
 
 - Source of truth: `main` branch on GitHub. GitHub Pages auto-deploys `main`
   (~1 minute) to `https://garrettjockel-creator.github.io/morning-chores/`.
-- The Cloudflare Worker is deployed separately from `worker.js` via the
-  Cloudflare dashboard, with the two API-key secrets set in Worker settings.
+- The Cloudflare Worker is deployed from `worker.js` via the Cloudflare
+  dashboard with the two API-key secrets set in Worker settings. Because
+  it is a thin proxy (see "Thin-proxy architecture"), it only needs
+  redeploying for changes to the Worker itself (e.g. CORS origin, model
+  id) — **not** for AI capability changes, which ship via the page.
 - Required Firebase Console setup: Google sign-in provider enabled, the
   GitHub Pages domain added to Authorized domains, and the Firestore rules
   above published.
-```
