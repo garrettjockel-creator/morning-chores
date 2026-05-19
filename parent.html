@@ -299,7 +299,7 @@
     <!-- Activities -->
     <div class="section">
       <h3>Activity Ideas</h3>
-      <p style="font-size:12px;color:#999;margin-bottom:10px;">Custom activities you add will appear alongside the built-in ones.</p>
+      <p style="font-size:12px;color:#999;margin-bottom:10px;">Tap a category to expand it. These are the activity ideas your kid sees — add, edit, or remove any of them (also via the ✨ AI Helper).</p>
       <div id="activitiesManager"></div>
       <button class="btn-add" onclick="openActivityForm()">+ Add Activity</button>
     </div>
@@ -964,21 +964,58 @@ async function deleteReward(id) {
 let activitiesList = [];
 let storiesList = [];
 
+const PACT_CATS = [
+  { tag: 'outside',  label: '🌳 Outside' },
+  { tag: 'drive',    label: '🚗 Places to Go' },
+  { tag: 'siblings', label: '👫 With Siblings' },
+  { tag: 'parent',   label: '👨‍👦 With a Grown-Up' },
+  { tag: 'solo',     label: '👤 On My Own' },
+  { tag: 'inside',   label: '🏠 Inside' },
+];
+function pActCat(a) {
+  const t = a.tags || [];
+  for (const c of PACT_CATS) if (t.includes(c.tag)) return c.label;
+  return '✨ More Ideas';
+}
+
+function toggleActCat(hdr) {
+  const body = hdr.nextElementSibling;
+  const caret = hdr.querySelector('.act-cat-caret');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (caret) caret.textContent = open ? '▸' : '▾';
+}
+
 function renderActivitiesManager(activities) {
   const el = document.getElementById('activitiesManager');
   if (!activities || activities.length === 0) {
-    el.innerHTML = '<p style="color:#999;font-size:13px;">No custom activities yet.</p>';
+    el.innerHTML = '<p style="color:#999;font-size:13px;">No activities yet.</p>';
     return;
   }
-  el.innerHTML = activities.map(a =>
-    '<div class="chore-row">' +
-    '<div class="chore-row-icon">' + (a.emoji || '🎯') + '</div>' +
-    '<div class="chore-row-info"><div class="chore-row-title">' + a.name + '</div>' +
-    '<div class="chore-row-sub">' + (a.tags || []).join(', ') + '</div></div>' +
-    '<div class="chore-row-actions">' +
-    '<button class="btn-sm btn-del" onclick="deleteActivity(\'' + a.id + '\')">Del</button>' +
-    '</div></div>'
-  ).join('');
+  const buckets = {};
+  activities.forEach(a => { const k = pActCat(a); (buckets[k] = buckets[k] || []).push(a); });
+  const order = PACT_CATS.map(c => c.label).concat(['✨ More Ideas']);
+  let html = '';
+  order.forEach(label => {
+    const items = buckets[label];
+    if (!items || !items.length) return;
+    const rows = items.map(a =>
+      '<div class="chore-row">' +
+      '<div class="chore-row-icon">' + (a.emoji || '🎯') + '</div>' +
+      '<div class="chore-row-info"><div class="chore-row-title">' + a.name + '</div>' +
+      '<div class="chore-row-sub">' + (a.tags || []).join(', ') + '</div></div>' +
+      '<div class="chore-row-actions">' +
+      '<button class="btn-sm btn-del" onclick="deleteActivity(\'' + a.id + '\')">Del</button>' +
+      '</div></div>'
+    ).join('');
+    html +=
+      '<div class="act-cat-hdr" onclick="toggleActCat(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:11px 4px;font-weight:700;font-size:14px;border-bottom:1px solid #eee;">' +
+        '<span>' + label + ' <span style="color:#999;font-weight:600;">(' + items.length + ')</span></span>' +
+        '<span class="act-cat-caret" style="color:#999;">▸</span>' +
+      '</div>' +
+      '<div class="act-cat-body" style="display:none;">' + rows + '</div>';
+  });
+  el.innerHTML = html;
 }
 
 function openActivityForm() {
