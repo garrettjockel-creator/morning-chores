@@ -1015,6 +1015,17 @@ async function deleteActivity(id) {
 
 // ===== CUSTOMIZE WITH AI =====
 const AI_DEFAULT_WORKER = 'https://morning-chores-helper.gjockel.workers.dev';
+const AI_THEMES = [
+  {id:'chiefs',name:'Chiefs'},{id:'cowboys',name:'Cowboys'},{id:'packers',name:'Packers'},
+  {id:'lakers',name:'Lakers'},{id:'warriors',name:'Warriors'},{id:'yankees',name:'Yankees'},
+  {id:'dodgers',name:'Dodgers'},{id:'manutd',name:'Man United'},{id:'barcelona',name:'Barcelona'},
+  {id:'avalanche',name:'Avalanche'},{id:'lightning',name:'Lightning'},{id:'realmadrid',name:'Real Madrid'},
+  {id:'steelers',name:'Steelers'},{id:'pirates',name:'Pirates'},{id:'penguins',name:'Penguins'},
+  {id:'duquesne',name:'Duquesne Dukes'},{id:'stkillianceltics',name:'St. Killian Celtics'},
+  {id:'purple-galaxy',name:'Purple Galaxy'},{id:'ocean-blue',name:'Ocean Blue'},{id:'fire-red',name:'Fire Red'},
+  {id:'jungle-green',name:'Jungle Green'},{id:'sunset-orange',name:'Sunset Orange'},{id:'hot-pink',name:'Hot Pink'},
+  {id:'midnight',name:'Midnight'},{id:'golden',name:'Golden'},
+];
 let pendingAiActions = null;
 let aiMessages = [];
 
@@ -1034,7 +1045,7 @@ function aiLogAppend(html) {
   return div;
 }
 
-const AI_CONFIRM_TYPES = ['delete_chore', 'delete_reward', 'delete_goal', 'delete_activity', 'delete_story'];
+const AI_CONFIRM_TYPES = ['delete_chore', 'delete_reward', 'delete_goal', 'delete_activity', 'delete_story', 'adjust_points', 'set_points', 'set_streak'];
 function aiNeedsConfirm(a) {
   return AI_CONFIRM_TYPES.includes(a.type) ||
     (a.type === 'update_chore' && a.active === false);
@@ -1068,11 +1079,15 @@ async function sendParentAI() {
           goals: goalTexts,
           activities: activitiesList,
           stories: storiesList,
+          profile: { xp: profile.xp || 0, streak: profile.streak || 0 },
+          themeOptions: AI_THEMES,
           settings: {
             childName: familyData.childName || '',
             xpPerChore: familyData.xpPerChore || 10,
             victorySongUrl: familyData.victorySongUrl || '',
             sillyVoiceEnabled: !!familyData.sillyVoiceEnabled,
+            chatEnabled: familyData.chatEnabled !== false,
+            kidTheme: familyData.kidTheme || '',
           },
         },
       }),
@@ -1126,6 +1141,9 @@ function aiDescribe(a) {
   if (a.type === 'delete_goal') return 'Delete goal "' + a.match + '"';
   if (a.type === 'delete_activity') return 'Delete activity "' + a.match + '"';
   if (a.type === 'delete_story') return 'Delete story "' + a.match + '"';
+  if (a.type === 'adjust_points') return (a.delta >= 0 ? 'Add ' : 'Remove ') + Math.abs(parseInt(a.delta) || 0) + ' points';
+  if (a.type === 'set_points') return 'Set total points to ' + a.value;
+  if (a.type === 'set_streak') return 'Set streak to ' + a.value;
   if (a.type === 'update_chore' && a.active === false) return 'Disable chore "' + a.match + '"';
   return a.type;
 }
@@ -1268,15 +1286,55 @@ async function applyAiActions(actions) {
         if (!st) { summary.push('no story matching "' + a.match + '"'); continue; }
         await familyRef.collection('stories').doc(st.id).delete();
         summary.push('deleted story "' + st.title + '"');
+      } else if (a.type === 'update_goal') {
+        const snap = await familyRef.collection('goals').get();
+        const m = String(a.match || '').trim().toLowerCase();
+        const hit = snap.docs.find(d => String(d.data().text || '').trim().toLowerCase() === m);
+        if (!hit) { summary.push('no goal matching "' + a.match + '"'); continue; }
+        if (a.text == null || !String(a.text).trim()) { summary.push('no new goal text given'); continue; }
+        await familyRef.collection('goals').doc(hit.id).update({ text: String(a.text).trim() });
+        summary.push('updated goal');
+      } else if (a.type === 'complete_goal') {
+        const snap = await familyRef.collection('goals').get();
+        const m = String(a.match || '').trim().toLowerCase();
+        const hit = snap.docs.find(d => String(d.data().text || '').trim().toLowerCase() === m);
+        if (!hit) { summary.push('no goal matching "' + a.match + '"'); continue; }
+        const done = a.completed !== false;
+        await familyRef.collection('goals').doc(hit.id).update({ completed: done });
+        summary.push(done ? 'marked goal complete' : 'marked goal not complete');
+      } else if (a.type === 'adjust_points') {
+        const delta = parseInt(a.delta);
+        if (!Number.isFinite(delta)) { summary.push('invalid points delta'); continue; }
+        const next = Math.max(0, (profile.xp || 0) + delta);
+        await familyRef.collection('profile').doc('main').set({ xp: next }, { merge: true });
+        summary.push((delta >= 0 ? 'added ' : 'removed ') + Math.abs(delta) + ' points (now ' + next + ')');
+      } else if (a.type === 'set_points') {
+        const val = parseInt(a.value);
+        if (!Number.isFinite(val) || val < 0) { summary.push('invalid points value'); continue; }
+        await familyRef.collection('profile').doc('main').set({ xp: val }, { merge: true });
+        summary.push('set points to ' + val);
+      } else if (a.type === 'set_streak') {
+        const val = parseInt(a.value);
+        if (!Number.isFinite(val) || val < 0) { summary.push('invalid streak value'); continue; }
+        await familyRef.collection('profile').doc('main').set({ streak: val }, { merge: true });
+        summary.push('set streak to ' + val);
       } else if (a.type === 'set_setting') {
-        const allowed = ['childName','xpPerChore','victorySongUrl','sillyVoiceEnabled'];
+        const allowed = ['childName','xpPerChore','victorySongUrl','sillyVoiceEnabled','chatEnabled','kidTheme'];
         if (!allowed.includes(a.key)) { summary.push('setting "' + a.key + '" not allowed'); continue; }
         let v = a.value;
         if (a.key === 'xpPerChore') v = parseInt(v) || 10;
-        if (a.key === 'sillyVoiceEnabled') v = !!v;
+        if (a.key === 'sillyVoiceEnabled' || a.key === 'chatEnabled') v = !!v;
         if (a.key === 'childName' || a.key === 'victorySongUrl') v = String(v).trim();
+        if (a.key === 'kidTheme') {
+          const want = String(v).trim().toLowerCase();
+          const t = AI_THEMES.find(x => x.id === want)
+            || AI_THEMES.find(x => x.name.toLowerCase() === want)
+            || AI_THEMES.find(x => x.name.toLowerCase().includes(want) || want.includes(x.name.toLowerCase()));
+          if (!t) { summary.push('no theme matching "' + a.value + '"'); continue; }
+          v = t.id;
+        }
         await familyRef.update({ [a.key]: v });
-        summary.push('set ' + a.key);
+        summary.push('set ' + a.key + (a.key === 'kidTheme' ? ' to ' + v : ''));
       } else {
         summary.push('skipped unknown action "' + (a.type || '?') + '"');
       }
@@ -1372,6 +1430,7 @@ init();
       <button class="ai-chip" onclick="aiChip('add a goal: ')">🎯 Add goal</button>
       <button class="ai-chip" onclick="aiChip('add a screen-free activity idea called ')">💡 Add idea</button>
       <button class="ai-chip" onclick="aiChip('add a Bible story about ')">📖 Add story</button>
+      <button class="ai-chip" onclick="aiChip('change the theme to ')">🎨 Theme</button>
       <button class="ai-chip" onclick="aiChip('change the child name to ')">⚙️ Settings</button>
       <button class="ai-chip" onclick="aiHelp()">❓ What can you do?</button>
     </div>
@@ -1411,7 +1470,8 @@ function aiHelp() {
     '<ul style="margin:8px 0 0 18px;padding:0;">' +
     '<li>Add, edit, or remove <strong>chores</strong> (name, time of day, points)</li>' +
     '<li>Add, edit, or remove <strong>rewards</strong> (name, emoji, point cost)</li>' +
-    '<li>Add or remove <strong>goals</strong></li>' +
+    '<li>Add, edit, complete, or remove <strong>goals</strong></li>' +
+    '<li>Change the kid app <strong>theme</strong>, or adjust <strong>points/streak</strong></li>' +
     '<li>Add, edit, or remove screen-free <strong>activity ideas</strong> (name, emoji, tags)</li>' +
     '<li>Add more <strong>Bible stories, Jesus facts, or drawing prompts</strong> shown in the kid app</li>' +
     '<li>Change <strong>settings</strong>: child name, points per chore, victory song, silly voice</li>' +

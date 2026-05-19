@@ -148,6 +148,11 @@ Required vs optional per action:
 - add_reward: REQUIRED name, cost (points). OPTIONAL emoji (you may choose one).
 - update_reward: REQUIRED match + at least one field.
 - add_goal: REQUIRED text.
+- update_goal: REQUIRED match (existing goal text) + new text.
+- complete_goal: REQUIRED match (existing goal text) + completed (true to mark done, false to un-complete).
+- adjust_points: REQUIRED delta (integer, may be negative — e.g. +50 bonus or -10).
+- set_points: REQUIRED value (integer total).
+- set_streak: REQUIRED value (integer; 0 resets the streak).
 - add_activity (a screen-free activity idea): REQUIRED name. OPTIONAL emoji (you may choose one) and tags (any of: inside, outside, solo, siblings, parent, drive).
 - update_activity: REQUIRED match + at least one field.
 - add_story (extra content shown for the "Bible story" / "Learn about Jesus" / "Draw for God" buttons in the kid app): REQUIRED storyType (bible | jesus | draw), title, text. Write the "text" as a short, warm, age-5-7 friendly paragraph; for storyType "draw" the text is a drawing prompt. You MAY write the title/text yourself from the parent's request — these are not "guessed defaults", they are the content the parent asked you to create. Only ask if the parent's request is too vague to write something specific.
@@ -163,14 +168,20 @@ Allowed action objects (use ONLY these types and fields):
 - {"type":"update_reward","match":"<existing reward name>","name":"...","emoji":"...","cost":<int>}
 - {"type":"delete_reward","match":"<existing reward name>"}
 - {"type":"add_goal","text":"..."}
+- {"type":"update_goal","match":"<existing goal text>","text":"<new text>"}
+- {"type":"complete_goal","match":"<existing goal text>","completed":<bool>}
 - {"type":"delete_goal","match":"<existing goal text>"}
+- {"type":"adjust_points","delta":<int>}
+- {"type":"set_points","value":<int>}
+- {"type":"set_streak","value":<int>}
 - {"type":"add_activity","name":"...","emoji":"<one emoji>","tags":["inside"|"outside"|"solo"|"siblings"|"parent"|"drive"]}
 - {"type":"update_activity","match":"<existing activity name>","name":"...","emoji":"...","tags":[...]}
 - {"type":"delete_activity","match":"<existing activity name>"}
 - {"type":"add_story","storyType":"bible|jesus|draw","title":"...","text":"..."}
 - {"type":"update_story","match":"<existing custom story title>","title":"...","text":"...","storyType":"bible|jesus|draw"}
 - {"type":"delete_story","match":"<existing custom story title>"}
-- {"type":"set_setting","key":"childName|xpPerChore|victorySongUrl|sillyVoiceEnabled","value":<string|int|bool>}
+- {"type":"set_setting","key":"childName|xpPerChore|victorySongUrl|sillyVoiceEnabled|chatEnabled|kidTheme","value":<string|int|bool>}
+  (for kidTheme, "value" MUST be one of the theme ids in themeOptions below — match the parent's wording to the closest theme name and use its id)
 
 Rules:
 - Only include fields you intend to set. Omit optional fields you weren't given (except an icon/emoji you chose).
@@ -186,6 +197,8 @@ ${JSON.stringify({
   goals: (ctx.goals || []).map(g => (typeof g === 'string' ? g : g.text)),
   activities: (ctx.activities || []).map(a => ({ name: a.name, emoji: a.emoji || '', tags: a.tags || [] })),
   customStories: (ctx.stories || []).map(s => ({ storyType: s.type, title: s.title })),
+  profile: { points: (ctx.profile && ctx.profile.xp) || 0, streak: (ctx.profile && ctx.profile.streak) || 0 },
+  themeOptions: ctx.themeOptions || [],
   settings: ctx.settings || {},
 })}`;
 
