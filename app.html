@@ -392,6 +392,9 @@
     }
     .activity-cat:first-of-type { margin-top: 6px; }
     .no-results { text-align: center; color: rgba(255,255,255,0.7); padding: 30px; font-size: 14px; }
+    .ra-word { cursor: pointer; border-radius: 5px; padding: 0 1px; transition: background 0.12s; }
+    .ra-word:active { background: #fde68a; }
+    .ra-word.ra-on { background: #fbbf24; color: #1a1a2e; }
 
     /* Speaker buttons */
     .speak-btn {
@@ -850,9 +853,10 @@
     <div class="modal-content" style="max-width:340px;">
       <div class="modal-emoji" id="actDetailEmoji">📖</div>
       <div class="modal-title" id="actDetailTitle" style="font-size:18px;"></div>
-      <div class="modal-subtitle" id="actDetailText" style="text-align:left;line-height:1.5;margin-top:10px;"></div>
+      <div class="modal-subtitle" id="actDetailText" style="text-align:left;line-height:1.7;margin-top:10px;font-size:17px;"></div>
+      <div style="text-align:center;font-size:11px;color:#999;margin-top:8px;">👆 Tap any word to hear it</div>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
-        <button class="modal-btn" onclick="closeModal('activityDetailModal')">Got it!</button>
+        <button class="modal-btn" onclick="raStop();closeModal('activityDetailModal')">Got it!</button>
         <button class="modal-btn" id="actDetailBtn2" style="background:#22c55e;">Another!</button>
       </div>
     </div>
@@ -1115,7 +1119,102 @@ function stopSpeaking() {
   ttsAudio.removeAttribute('src');
   if (ttsObjectUrl) { URL.revokeObjectURL(ttsObjectUrl); ttsObjectUrl = null; }
   window.speechSynthesis.cancel();
+  raStop();
   onSpeakDone = null;
+}
+
+// ===== READ-ALONG (early literacy) =====
+let raAudio = null;
+let raTimer = null;
+let raUrl = null;
+
+function raStop() {
+  if (raTimer) { clearInterval(raTimer); raTimer = null; }
+  if (raAudio) { try { raAudio.pause(); } catch (e) {} raAudio = null; }
+  if (raUrl) { URL.revokeObjectURL(raUrl); raUrl = null; }
+  document.querySelectorAll('.ra-word.ra-on').forEach(w => w.classList.remove('ra-on'));
+}
+
+function raEsc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Render text into #actDetailText as tappable words. Returns the word spans.
+function raRender(text) {
+  const el = document.getElementById('actDetailText');
+  const tokens = String(text).split(/(\s+)/);
+  let html = '';
+  tokens.forEach(tok => {
+    if (tok === '') return;
+    if (/^\s+$/.test(tok)) { html += ' '; return; }
+    const sayWord = tok.replace(/[^A-Za-z0-9'’-]/g, '');
+    html += '<span class="ra-word" data-w="' + raEsc(sayWord) + '" onclick="raSayWord(this)">' + raEsc(tok) + '</span>';
+  });
+  el.innerHTML = html;
+  return Array.prototype.slice.call(el.querySelectorAll('.ra-word'));
+}
+
+function raSayWord(span) {
+  raStop();
+  span.classList.add('ra-on');
+  setTimeout(function () { span.classList.remove('ra-on'); }, 1000);
+  const w = span.getAttribute('data-w') || span.textContent;
+  if (w) speak(w);
+}
+
+// Speak full text (good OpenAI voice) and highlight words as it reads.
+function readAlong(text) {
+  raStop();
+  const spans = raRender(text);
+  if (!spans.length) return;
+  const weights = spans.map(s => (s.textContent || '').replace(/\s/g, '').length + 1);
+  const total = weights.reduce((a, b) => a + b, 0) || 1;
+
+  fetch(WORKER_URL + '/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: String(text).slice(0, 4096) }),
+  })
+    .then(function (r) { if (!r.ok) throw new Error('tts'); return r.blob(); })
+    .then(function (blob) {
+      raUrl = URL.createObjectURL(blob);
+      raAudio = new Audio(raUrl);
+      raAudio.onloadedmetadata = function () {
+        const dur = (isFinite(raAudio.duration) && raAudio.duration > 0)
+          ? raAudio.duration : spans.length * 0.38;
+        let acc = 0;
+        const starts = weights.map(function (w) { const s = acc; acc += w; return (s / total) * dur; });
+        raTimer = setInterval(function () {
+          if (!raAudio) return;
+          const t = raAudio.currentTime;
+          let idx = -1;
+          for (let i = 0; i < starts.length; i++) { if (t >= starts[i]) idx = i; else break; }
+          spans.forEach(function (sp, i) { sp.classList.toggle('ra-on', i === idx); });
+        }, 80);
+      };
+      raAudio.onended = function () { raStop(); };
+      const p = raAudio.play();
+      if (p) p.catch(function () { raStop(); readAlongBrowser(text, spans); });
+    })
+    .catch(function () { readAlongBrowser(text, spans); });
+}
+
+// Fallback: browser voice with exact word-boundary highlighting.
+function readAlongBrowser(text, spans) {
+  if (!('speechSynthesis' in window)) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.95; utter.pitch = 1.1; utter.lang = 'en-US';
+  let wi = -1;
+  utter.onboundary = function (e) {
+    if (e.name === 'word') {
+      wi++;
+      spans.forEach(function (sp, i) { sp.classList.toggle('ra-on', i === wi); });
+    }
+  };
+  utter.onend = function () { raStop(); };
+  utter.onerror = function () { raStop(); };
+  window.speechSynthesis.speak(utter);
 }
 
 function speak(text, btn, callback) {
@@ -2089,13 +2188,12 @@ function showActivityDetail(type) {
   if (!item) return;
   document.getElementById('actDetailEmoji').textContent = type === 'bible' ? '📖' : type === 'jesus' ? '❤️' : '🎨';
   document.getElementById('actDetailTitle').textContent = item.title;
-  document.getElementById('actDetailText').textContent = item.text;
   const b2 = document.getElementById('actDetailBtn2');
   b2.style.display = 'inline-block';
   b2.textContent = 'Another!';
   b2.onclick = function() { showActivityDetail(type); };
   document.getElementById('activityDetailModal').classList.add('visible');
-  speak(item.title + '. ' + item.text);
+  readAlong(item.text);
 }
 
 // Generic activity → ask Helper for one concrete, kid-friendly idea
@@ -2126,8 +2224,7 @@ async function showActivityIdea(name, emoji) {
   } catch (e) {
     text = 'Have fun with ' + name + '! Use your imagination and be creative!';
   }
-  document.getElementById('actDetailText').textContent = text;
-  speak(text);
+  readAlong(text);
 }
 
 function pickRandom() {
