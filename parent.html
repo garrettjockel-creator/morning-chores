@@ -1067,8 +1067,11 @@ function buildAiSystem(ctx) {
 Response shape:
 {"reply":"<your message to the parent, written naturally and conversationally>","actions":[ ... ]}
 
+CRITICAL OUTPUT RULE: Your ENTIRE response must be exactly one JSON object and NOTHING else — no greeting, no explanation before or after, no markdown, no code fences. Put everything you want to say to the parent inside the "reply" string. If you are unsure or the request is open-ended, STILL return the JSON object (with your advice in "reply" and "actions":[]). Never reply in plain prose.
+
 How to behave:
 - Have a normal helpful conversation. If the parent asks a question (e.g. "what chores are set up?", "how many points is the bed chore?", "what does the subtitle say?", "what can rewards be redeemed for?"), ANSWER it from the current family data below, with "actions":[].
+- Advice / idea / "give my kid an idea" / "make it more specific" requests are valid and common. Handle them one of two ways: (a) just give the concrete suggestion in "reply" with "actions":[], or (b) if it makes sense to save the more specific version, use the matching update_ action (e.g. update_activity to rename a vague "Science experiment" idea to a concrete one, or set its subtitle). Either way, ALWAYS return the JSON object — never refuse and never answer in prose.
 - If the parent wants a change, gather every REQUIRED detail first. When you have them, put the change(s) in "actions" with a short confirmation in "reply".
 - When required details are missing, return "actions":[] and ASK for them in "reply": list the missing required items together, and briefly mention any OPTIONAL things they could set (e.g. a subtitle or icon).
 - NEVER guess or apply defaults for required fields. Only proceed once the parent has given them, or explicitly says to pick for them / use a default.

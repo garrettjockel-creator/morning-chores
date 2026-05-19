@@ -155,17 +155,30 @@ export default {
         }
 
         let raw = (pData.content?.[0]?.text || '').trim();
-        raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/,'').trim();
-        let parsed;
+        raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+
+        let parsed = null;
         try {
           parsed = JSON.parse(raw);
         } catch (e) {
-          return jsonResponse({ reply: "Sorry, I couldn't understand that. Try rephrasing.", actions: [] }, 200);
+          // Model wrapped the JSON in prose — extract the first {...} object.
+          const start = raw.indexOf('{');
+          const end = raw.lastIndexOf('}');
+          if (start !== -1 && end > start) {
+            try { parsed = JSON.parse(raw.slice(start, end + 1)); } catch (e2) { parsed = null; }
+          }
         }
-        if (!parsed || !Array.isArray(parsed.actions)) {
-          parsed = { reply: parsed?.reply || 'No changes made.', actions: [] };
+
+        if (parsed && typeof parsed === 'object') {
+          return jsonResponse({
+            reply: typeof parsed.reply === 'string' ? parsed.reply : 'Done.',
+            actions: Array.isArray(parsed.actions) ? parsed.actions : [],
+          }, 200);
         }
-        return jsonResponse(parsed, 200);
+
+        // Couldn't parse JSON at all — show the model's actual answer
+        // instead of a dead-end message.
+        return jsonResponse({ reply: raw || "I didn't catch that — try rephrasing.", actions: [] }, 200);
       }
 
       // ===== CHAT ENDPOINT (default) =====
