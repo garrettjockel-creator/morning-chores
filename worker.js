@@ -106,6 +106,85 @@ export default {
         });
       }
 
+      // ===== PARENT CUSTOMIZATION ENDPOINT =====
+      if (url.pathname === '/parent') {
+        if (!env.ANTHROPIC_API_KEY) {
+          return jsonResponse({ error: 'ANTHROPIC_API_KEY secret is not set in Worker settings' }, 500);
+        }
+
+        let body;
+        try { body = await request.json(); } catch (e) {
+          return jsonResponse({ error: 'Invalid JSON' }, 400);
+        }
+
+        const prompt = (body.prompt || '').slice(0, 2000);
+        const ctx = body.context || {};
+        if (!prompt) return jsonResponse({ error: 'No prompt provided' }, 400);
+
+        const parentSystem = `You translate a parent's plain-English request into structured edits for a kids' chore app. You ONLY output JSON. No prose, no markdown, no code fences.
+
+Output exactly this shape:
+{"reply":"<one short friendly sentence describing what you did>","actions":[ ... ]}
+
+Allowed action objects (use ONLY these types and fields):
+- {"type":"add_chore","title":"...","subtitle":"...","icon":"<one emoji>","timeOfDay":"morning|afternoon|evening","xp":<int>}
+- {"type":"update_chore","match":"<existing chore title>","title":"...","subtitle":"...","icon":"...","timeOfDay":"...","xp":<int>,"active":<bool>}
+- {"type":"delete_chore","match":"<existing chore title>"}
+- {"type":"add_reward","name":"...","emoji":"<one emoji>","cost":<int>}
+- {"type":"update_reward","match":"<existing reward name>","name":"...","emoji":"...","cost":<int>}
+- {"type":"delete_reward","match":"<existing reward name>"}
+- {"type":"add_goal","text":"..."}
+- {"type":"delete_goal","match":"<existing goal text>"}
+- {"type":"set_setting","key":"childName|xpPerChore|victorySongUrl|sillyVoiceEnabled","value":<string|int|bool>}
+
+Rules:
+- Only include fields you intend to change. Omit unknown/optional fields.
+- For update_* and delete_*, "match" must be an existing item from the context below.
+- If the request is unclear or cannot be expressed with these actions, return an empty actions array and explain why in "reply".
+- Never invent destructive actions the parent did not ask for.
+
+Current family data (for matching):
+${JSON.stringify({
+  chores: (ctx.chores || []).map(c => ({ title: c.title, timeOfDay: c.timeOfDay, xp: c.xp, active: c.active })),
+  rewards: (ctx.rewards || []).map(r => ({ name: r.name, cost: r.cost })),
+  goals: (ctx.goals || []).map(g => g.text),
+  settings: ctx.settings || {},
+})}`;
+
+        const pRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: 'claude-3-haiku-20240307',
+            max_tokens: 1024,
+            system: parentSystem,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        });
+
+        const pData = await pRes.json();
+        if (!pRes.ok) {
+          return jsonResponse({ error: 'API error', detail: pData }, pRes.status);
+        }
+
+        let raw = (pData.content?.[0]?.text || '').trim();
+        raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/,'').trim();
+        let parsed;
+        try {
+          parsed = JSON.parse(raw);
+        } catch (e) {
+          return jsonResponse({ reply: "Sorry, I couldn't understand that. Try rephrasing.", actions: [] }, 200);
+        }
+        if (!parsed || !Array.isArray(parsed.actions)) {
+          parsed = { reply: parsed?.reply || 'No changes made.', actions: [] };
+        }
+        return jsonResponse(parsed, 200);
+      }
+
       // ===== CHAT ENDPOINT (default) =====
       if (!env.ANTHROPIC_API_KEY) {
         return jsonResponse({ error: 'ANTHROPIC_API_KEY secret is not set in Worker settings' }, 500);

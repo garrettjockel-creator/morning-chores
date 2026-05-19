@@ -269,6 +269,15 @@
       </div>
     </div>
 
+    <!-- Customize with AI -->
+    <div class="section">
+      <h3>Customize with AI</h3>
+      <p style="font-size:13px;color:#888;margin:-4px 0 10px;">Describe a change in plain English — e.g. "add an evening chore to feed the dog worth 15 points" or "make the ice cream reward cost 300".</p>
+      <div id="aiLog" style="max-height:260px;overflow-y:auto;margin-bottom:10px;"></div>
+      <textarea id="aiPrompt" rows="2" placeholder="What would you like to change?" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>
+      <button class="btn-add" id="aiSendBtn" onclick="sendParentAI()" style="margin-top:8px;">Send</button>
+    </div>
+
     <!-- 30-Day Chart -->
     <div class="section">
       <h3>Last 30 Days</h3>
@@ -1003,6 +1012,222 @@ async function deleteActivity(id) {
   if (!confirm('Remove this activity?')) return;
   await familyRef.collection('activities').doc(id).delete();
   await loadDashData();
+}
+
+// ===== CUSTOMIZE WITH AI =====
+const AI_DEFAULT_WORKER = 'https://morning-chores-helper.gjockel.workers.dev';
+let pendingAiActions = null;
+
+function aiEsc(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+function aiLogAppend(html) {
+  const log = document.getElementById('aiLog');
+  const div = document.createElement('div');
+  div.style.cssText = 'margin-bottom:10px;font-size:14px;line-height:1.4;';
+  div.innerHTML = html;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+
+const AI_CONFIRM_TYPES = ['delete_chore', 'delete_reward', 'delete_goal'];
+function aiNeedsConfirm(a) {
+  return AI_CONFIRM_TYPES.includes(a.type) ||
+    (a.type === 'update_chore' && a.active === false);
+}
+
+async function sendParentAI() {
+  const input = document.getElementById('aiPrompt');
+  const btn = document.getElementById('aiSendBtn');
+  const prompt = input.value.trim();
+  if (!prompt) return;
+
+  aiLogAppend('<div style="text-align:right;"><span style="background:#eef;padding:6px 10px;border-radius:10px;display:inline-block;">' + aiEsc(prompt) + '</span></div>');
+  input.value = '';
+  btn.disabled = true;
+  const thinking = aiLogAppend('<em style="color:#999;">Thinking…</em>');
+
+  try {
+    const gSnap = await familyRef.collection('goals').get();
+    const goalTexts = gSnap.docs.map(d => d.data());
+    const workerUrl = (familyData.workerUrl || AI_DEFAULT_WORKER).replace(/\/+$/, '');
+
+    const res = await fetch(workerUrl + '/parent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: prompt,
+        context: {
+          chores: chores,
+          rewards: rewardsList,
+          goals: goalTexts,
+          settings: {
+            childName: familyData.childName || '',
+            xpPerChore: familyData.xpPerChore || 10,
+            victorySongUrl: familyData.victorySongUrl || '',
+            sillyVoiceEnabled: !!familyData.sillyVoiceEnabled,
+          },
+        },
+      }),
+    });
+    const data = await res.json();
+    thinking.remove();
+
+    if (!res.ok || data.error) {
+      aiLogAppend('<span style="color:#ef4444;">Error: ' + aiEsc(data.error || ('HTTP ' + res.status)) + '</span>');
+      btn.disabled = false;
+      return;
+    }
+
+    aiLogAppend('<span style="color:#444;">' + aiEsc(data.reply || 'Done.') + '</span>');
+
+    const actions = Array.isArray(data.actions) ? data.actions : [];
+    const safe = actions.filter(a => !aiNeedsConfirm(a));
+    const confirmList = actions.filter(aiNeedsConfirm);
+
+    if (safe.length) {
+      const summary = await applyAiActions(safe);
+      aiLogAppend('<span style="color:#22c55e;">✓ ' + aiEsc(summary.join('; ')) + '</span>');
+      await loadDashData();
+    }
+
+    if (confirmList.length) {
+      pendingAiActions = confirmList;
+      const desc = confirmList.map(a => aiEsc(aiDescribe(a))).join('<br>');
+      aiLogAppend(
+        '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:10px;">' +
+        '<strong>Confirm these changes?</strong><br>' + desc +
+        '<div style="margin-top:8px;">' +
+        '<button class="btn-sm btn-del" onclick="confirmAiActions()">Apply</button> ' +
+        '<button class="btn-sm btn-edit" onclick="cancelAiActions()">Cancel</button>' +
+        '</div></div>');
+    }
+
+    if (!safe.length && !confirmList.length) {
+      aiLogAppend('<span style="color:#999;">No changes were made.</span>');
+    }
+  } catch (e) {
+    thinking.remove();
+    aiLogAppend('<span style="color:#ef4444;">Something went wrong: ' + aiEsc(e.message) + '</span>');
+  }
+  btn.disabled = false;
+}
+
+function aiDescribe(a) {
+  if (a.type === 'delete_chore') return 'Delete chore "' + a.match + '"';
+  if (a.type === 'delete_reward') return 'Delete reward "' + a.match + '"';
+  if (a.type === 'delete_goal') return 'Delete goal "' + a.match + '"';
+  if (a.type === 'update_chore' && a.active === false) return 'Disable chore "' + a.match + '"';
+  return a.type;
+}
+
+async function confirmAiActions() {
+  if (!pendingAiActions) return;
+  const summary = await applyAiActions(pendingAiActions);
+  pendingAiActions = null;
+  aiLogAppend('<span style="color:#22c55e;">✓ ' + aiEsc(summary.join('; ')) + '</span>');
+  await loadDashData();
+}
+
+function cancelAiActions() {
+  pendingAiActions = null;
+  aiLogAppend('<span style="color:#999;">Cancelled.</span>');
+}
+
+function aiFindByTitle(list, name) {
+  if (!name) return null;
+  const n = String(name).trim().toLowerCase();
+  return list.find(x => String(x.title || x.name || '').trim().toLowerCase() === n) || null;
+}
+
+async function applyAiActions(actions) {
+  const summary = [];
+  for (const a of actions) {
+    try {
+      if (a.type === 'add_chore' && a.title) {
+        await familyRef.collection('chores').doc().set({
+          title: String(a.title).trim(),
+          subtitle: a.subtitle ? String(a.subtitle).trim() : '',
+          icon: a.icon ? String(a.icon).trim() : '📋',
+          timeOfDay: ['morning','afternoon','evening'].includes(a.timeOfDay) ? a.timeOfDay : 'morning',
+          xp: parseInt(a.xp) || 10,
+          active: true,
+          order: chores.length + 1,
+        });
+        summary.push('added chore "' + a.title + '"');
+      } else if (a.type === 'update_chore') {
+        const c = aiFindByTitle(chores, a.match);
+        if (!c) { summary.push('no chore matching "' + a.match + '"'); continue; }
+        const fields = {};
+        if (a.title != null) fields.title = String(a.title).trim();
+        if (a.subtitle != null) fields.subtitle = String(a.subtitle).trim();
+        if (a.icon != null) fields.icon = String(a.icon).trim();
+        if (['morning','afternoon','evening'].includes(a.timeOfDay)) fields.timeOfDay = a.timeOfDay;
+        if (a.xp != null) fields.xp = parseInt(a.xp) || 10;
+        if (typeof a.active === 'boolean') fields.active = a.active;
+        if (Object.keys(fields).length) await familyRef.collection('chores').doc(c.id).update(fields);
+        summary.push('updated chore "' + c.title + '"');
+      } else if (a.type === 'delete_chore') {
+        const c = aiFindByTitle(chores, a.match);
+        if (!c) { summary.push('no chore matching "' + a.match + '"'); continue; }
+        await familyRef.collection('chores').doc(c.id).delete();
+        summary.push('deleted chore "' + c.title + '"');
+      } else if (a.type === 'add_reward' && a.name) {
+        await familyRef.collection('rewards').doc().set({
+          name: String(a.name).trim(),
+          emoji: a.emoji ? String(a.emoji).trim() : '🎁',
+          cost: parseInt(a.cost) || 100,
+        });
+        summary.push('added reward "' + a.name + '"');
+      } else if (a.type === 'update_reward') {
+        const r = aiFindByTitle(rewardsList, a.match);
+        if (!r) { summary.push('no reward matching "' + a.match + '"'); continue; }
+        const fields = {};
+        if (a.name != null) fields.name = String(a.name).trim();
+        if (a.emoji != null) fields.emoji = String(a.emoji).trim();
+        if (a.cost != null) fields.cost = parseInt(a.cost) || r.cost;
+        if (Object.keys(fields).length) await familyRef.collection('rewards').doc(r.id).update(fields);
+        summary.push('updated reward "' + r.name + '"');
+      } else if (a.type === 'delete_reward') {
+        const r = aiFindByTitle(rewardsList, a.match);
+        if (!r) { summary.push('no reward matching "' + a.match + '"'); continue; }
+        await familyRef.collection('rewards').doc(r.id).delete();
+        summary.push('deleted reward "' + r.name + '"');
+      } else if (a.type === 'add_goal' && a.text) {
+        await familyRef.collection('goals').doc().set({
+          text: String(a.text).trim(),
+          completed: false,
+          createdAt: new Date().toISOString(),
+        });
+        summary.push('added goal');
+      } else if (a.type === 'delete_goal') {
+        const snap = await familyRef.collection('goals').get();
+        const match = String(a.match || '').trim().toLowerCase();
+        const hit = snap.docs.find(d => String(d.data().text || '').trim().toLowerCase() === match);
+        if (!hit) { summary.push('no goal matching "' + a.match + '"'); continue; }
+        await familyRef.collection('goals').doc(hit.id).delete();
+        summary.push('deleted goal');
+      } else if (a.type === 'set_setting') {
+        const allowed = ['childName','xpPerChore','victorySongUrl','sillyVoiceEnabled'];
+        if (!allowed.includes(a.key)) { summary.push('setting "' + a.key + '" not allowed'); continue; }
+        let v = a.value;
+        if (a.key === 'xpPerChore') v = parseInt(v) || 10;
+        if (a.key === 'sillyVoiceEnabled') v = !!v;
+        if (a.key === 'childName' || a.key === 'victorySongUrl') v = String(v).trim();
+        await familyRef.update({ [a.key]: v });
+        summary.push('set ' + a.key);
+      } else {
+        summary.push('skipped unknown action "' + (a.type || '?') + '"');
+      }
+    } catch (e) {
+      summary.push('error on ' + (a.type || '?') + ': ' + e.message);
+    }
+  }
+  return summary.length ? summary : ['no changes'];
 }
 
 // ===== SETTINGS =====
