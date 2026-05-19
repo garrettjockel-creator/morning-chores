@@ -21,9 +21,13 @@ Target user: children roughly age 5–7, with a parent administering the account
   (popup flow). Used on the parent, kid-login, and admin pages.
 - **AI proxy:** A Cloudflare Worker (`worker.js`) proxies AI requests so API
   keys never reach the browser:
-  - Chat endpoint → Anthropic Claude (`claude-3-haiku-20240307`)
+  - Default chat endpoint → Anthropic Claude (`claude-3-haiku-20240307`) — kid Helper
+  - `/parent` endpoint → Anthropic Claude — parent customization (returns
+    strict JSON actions, not prose)
   - `/tts` endpoint → OpenAI text-to-speech (`tts-1`, voice `nova`)
   - Worker URL: `https://morning-chores-helper.gjockel.workers.dev`
+  - Deployed manually via the Cloudflare dashboard; must be redeployed
+    whenever `worker.js` changes.
 - **Hosting:** GitHub Pages, repo `garrettjockel-creator/morning-chores`,
   served from the `main` branch at
   `https://garrettjockel-creator.github.io/morning-chores/`.
@@ -134,6 +138,28 @@ Four tabs: **Chores**, **Rewards**, **Chat**, **Activities**.
 - Chore manager: add / edit / enable / disable chores.
 - Goals: add and track goals.
 - Rewards editor: manage the reward catalog.
+- Activities manager and family settings (child name, XP per chore,
+  victory song URL, silly voice, parent PIN).
+- **Customize with AI:** a plain-English chat that turns parent requests
+  into changes without using the manual forms (see below).
+
+### AI customization (parent dashboard)
+A parent types a natural-language request (e.g. "add an evening chore to
+feed the dog worth 15 points", "make the ice cream reward cost 300").
+
+- The browser sends the prompt plus the family's current chores, rewards,
+  goals, and settings to the Worker's `/parent` endpoint.
+- Claude returns a **strict JSON action list** (no free-form text writes).
+  Allowed actions: `add_chore`, `update_chore`, `delete_chore`,
+  `add_reward`, `update_reward`, `delete_reward`, `add_goal`,
+  `delete_goal`, `set_setting` (keys limited to `childName`,
+  `xpPerChore`, `victorySongUrl`, `sillyVoiceEnabled`).
+- The client **validates every action against a whitelist** before
+  writing to Firestore — arbitrary AI output is never executed.
+- **Add/edit** actions apply immediately. **Deletes and chore-disables**
+  require an explicit Apply/Cancel confirmation.
+- Unmatched (`match` not found) or unknown actions are reported, not
+  guessed at. Gated behind the parent's Google sign-in + parent PIN.
 
 ### Admin portal (`admin.html`)
 - Lists every family with child name, parent name/email.
