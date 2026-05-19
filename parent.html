@@ -1087,9 +1087,6 @@ async function sendParentAI() {
     const safe = actions.filter(a => !aiNeedsConfirm(a));
     const confirmList = actions.filter(aiNeedsConfirm);
 
-    // Once changes are produced the task is complete — start a fresh conversation.
-    if (actions.length) aiMessages = [];
-
     if (safe.length) {
       const summary = await applyAiActions(safe);
       aiLogAppend('<span style="color:#22c55e;">✓ ' + aiEsc(summary.join('; ')) + '</span>');
@@ -1108,9 +1105,6 @@ async function sendParentAI() {
         '</div></div>');
     }
 
-    if (!safe.length && !confirmList.length) {
-      aiLogAppend('<span style="color:#999;">No changes were made.</span>');
-    }
   } catch (e) {
     aiMessages.pop();
     thinking.remove();
@@ -1350,7 +1344,7 @@ function aiChip(template) {
 function aiHelp() {
   aiLogAppend(
     '<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:10px;">' +
-    "<strong>Hi! I'm your AI Helper.</strong> Tell me what to change and I'll do it — no need to find the right screen. I can:" +
+    "<strong>Hi! I'm your AI Helper.</strong> Ask me anything about your setup, or tell me what to change — no need to find the right screen. I can answer questions (\"what chores are set up?\", \"how many points is the bed chore?\") and I can:" +
     '<ul style="margin:8px 0 0 18px;padding:0;">' +
     '<li>Add, edit, or remove <strong>chores</strong> (name, time of day, points)</li>' +
     '<li>Add, edit, or remove <strong>rewards</strong> (name, emoji, point cost)</li>' +
