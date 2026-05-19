@@ -372,21 +372,25 @@
     .filter-btn.active { background: white; color: var(--primary); border-color: white; }
     .filter-btn:active { transform: scale(0.95); }
     .activity-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+      gap: 8px; margin-bottom: 4px;
     }
     .activity-card {
-      background: white; border-radius: 14px;
-      padding: 12px 8px; text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      cursor: pointer; transition: all 0.2s;
+      background: white; border-radius: 12px;
+      padding: 9px 5px; text-align: center;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.08);
+      cursor: pointer; transition: transform 0.15s;
     }
-    .activity-card:active { transform: scale(0.95); }
+    .activity-card:active { transform: scale(0.93); }
     .activity-card.hidden { display: none; }
-    .activity-emoji { font-size: 28px; }
-    .activity-name { font-size: 11px; font-weight: 600; color: #333; margin-top: 3px; line-height: 1.2; }
-    .activity-card.tappable { border: 2px solid var(--gold); }
-    .tap-hint { font-size: 9px; color: var(--gold); font-weight: 700; margin-top: 2px; }
+    .activity-emoji { font-size: 24px; line-height: 1.1; }
+    .activity-name { font-size: 10px; font-weight: 600; color: #333; margin-top: 3px; line-height: 1.15; }
+    .activity-card.tappable { border: 1px solid rgba(251,191,36,0.55); }
+    .activity-cat {
+      font-size: 13px; font-weight: 800; color: #fff;
+      margin: 16px 2px 8px; opacity: 0.95;
+    }
+    .activity-cat:first-of-type { margin-top: 6px; }
     .no-results { text-align: center; color: rgba(255,255,255,0.7); padding: 30px; font-size: 14px; }
 
     /* Speaker buttons */
@@ -2010,6 +2014,32 @@ function renderChat() {
 
 let activeFilter = 'all';
 
+const ACT_CATS = [
+  { tag: 'outside',  label: '🌳 Outside' },
+  { tag: 'drive',    label: '🚗 Places to Go' },
+  { tag: 'siblings', label: '👫 With Siblings' },
+  { tag: 'parent',   label: '👨‍👦 With a Grown-Up' },
+  { tag: 'solo',     label: '👤 On My Own' },
+  { tag: 'inside',   label: '🏠 Inside' },
+];
+const ACT_CAT_OTHER = '✨ More Ideas';
+
+function activityCategory(a) {
+  const tags = a.tags || [];
+  for (const c of ACT_CATS) if (tags.includes(c.tag)) return c.label;
+  return ACT_CAT_OTHER;
+}
+
+function activityCardHtml(i) {
+  const safeName = i.name.replace(/'/g, "\\'");
+  const tap = i.tap
+    ? ' onclick="showActivityDetail(\'' + i.tap + '\')"'
+    : ' onclick="showActivityIdea(\'' + safeName + '\',\'' + i.emoji + '\')"';
+  return '<div class="activity-card tappable"' + tap + '>' +
+    '<div class="activity-emoji">' + i.emoji + '</div>' +
+    '<div class="activity-name">' + i.name + '</div></div>';
+}
+
 function renderActivities() {
   let html = '<div class="filter-bar">' +
     FILTERS.map(f =>
@@ -2019,19 +2049,30 @@ function renderActivities() {
   html += '<button class="pick-btn" onclick="pickRandom()">🎲 Pick For Me!</button>' +
     '<div class="pick-result" id="pickResult"><div class="pick-result-emoji" id="pickEmoji"></div>' +
     '<div class="pick-result-text" id="pickText"></div></div>';
-  html += '<div class="activity-grid">';
-  getAllActivities().forEach(i => {
-    const show = activeFilter === 'all' || i.tags.includes(activeFilter);
-    const safeName = i.name.replace(/'/g, "\\'");
-    const tap = i.tap
-      ? ' onclick="showActivityDetail(\'' + i.tap + '\')"'
-      : ' onclick="showActivityIdea(\'' + safeName + '\',\'' + i.emoji + '\')"';
-    const hint = '<div class="tap-hint">Tap me!</div>';
-    html += '<div class="activity-card tappable' + (show ? '' : ' hidden') + '"' + tap + '>' +
-      '<div class="activity-emoji">' + i.emoji + '</div>' +
-      '<div class="activity-name">' + i.name + '</div>' + hint + '</div>';
-  });
-  html += '</div>';
+
+  const all = getAllActivities();
+
+  if (activeFilter !== 'all') {
+    // A specific filter is its own category — show one flat dense grid.
+    const matches = all.filter(a => (a.tags || []).includes(activeFilter));
+    html += matches.length
+      ? '<div class="activity-grid">' + matches.map(activityCardHtml).join('') + '</div>'
+      : '<div class="no-results">No ideas here yet!</div>';
+  } else {
+    // Default view: grouped category sections (each activity in one bucket).
+    const buckets = {};
+    all.forEach(a => {
+      const k = activityCategory(a);
+      (buckets[k] = buckets[k] || []).push(a);
+    });
+    ACT_CATS.map(c => c.label).concat([ACT_CAT_OTHER]).forEach(label => {
+      const items = buckets[label];
+      if (!items || !items.length) return;
+      html += '<div class="activity-cat">' + label + '</div>' +
+        '<div class="activity-grid">' + items.map(activityCardHtml).join('') + '</div>';
+    });
+  }
+
   document.getElementById('activitiesContainer').innerHTML = html;
 }
 
