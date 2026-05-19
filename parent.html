@@ -1011,6 +1011,7 @@ async function deleteActivity(id) {
 // ===== CUSTOMIZE WITH AI =====
 const AI_DEFAULT_WORKER = 'https://morning-chores-helper.gjockel.workers.dev';
 let pendingAiActions = null;
+let aiMessages = [];
 
 function aiEsc(s) {
   const d = document.createElement('div');
@@ -1043,6 +1044,7 @@ async function sendParentAI() {
   aiLogAppend('<div style="text-align:right;"><span style="background:#eef;padding:6px 10px;border-radius:10px;display:inline-block;">' + aiEsc(prompt) + '</span></div>');
   input.value = '';
   btn.disabled = true;
+  aiMessages.push({ role: 'user', content: prompt });
   const thinking = aiLogAppend('<em style="color:#999;">Thinking…</em>');
 
   try {
@@ -1054,7 +1056,7 @@ async function sendParentAI() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        prompt: prompt,
+        messages: aiMessages.slice(-12),
         context: {
           chores: chores,
           rewards: rewardsList,
@@ -1072,16 +1074,21 @@ async function sendParentAI() {
     thinking.remove();
 
     if (!res.ok || data.error) {
+      aiMessages.pop();
       aiLogAppend('<span style="color:#ef4444;">Error: ' + aiEsc(data.error || ('HTTP ' + res.status)) + '</span>');
       btn.disabled = false;
       return;
     }
 
+    aiMessages.push({ role: 'assistant', content: data.reply || '' });
     aiLogAppend('<span style="color:#444;">' + aiEsc(data.reply || 'Done.') + '</span>');
 
     const actions = Array.isArray(data.actions) ? data.actions : [];
     const safe = actions.filter(a => !aiNeedsConfirm(a));
     const confirmList = actions.filter(aiNeedsConfirm);
+
+    // Once changes are produced the task is complete — start a fresh conversation.
+    if (actions.length) aiMessages = [];
 
     if (safe.length) {
       const summary = await applyAiActions(safe);
@@ -1105,6 +1112,7 @@ async function sendParentAI() {
       aiLogAppend('<span style="color:#999;">No changes were made.</span>');
     }
   } catch (e) {
+    aiMessages.pop();
     thinking.remove();
     aiLogAppend('<span style="color:#ef4444;">Something went wrong: ' + aiEsc(e.message) + '</span>');
   }

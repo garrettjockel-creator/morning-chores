@@ -117,14 +117,37 @@ export default {
           return jsonResponse({ error: 'Invalid JSON' }, 400);
         }
 
-        const prompt = (body.prompt || '').slice(0, 2000);
         const ctx = body.context || {};
-        if (!prompt) return jsonResponse({ error: 'No prompt provided' }, 400);
+        let convo = Array.isArray(body.messages)
+          ? body.messages
+          : (body.prompt ? [{ role: 'user', content: body.prompt }] : []);
+        convo = convo
+          .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content)
+          .slice(-12)
+          .map(m => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
+        if (!convo.length || convo[convo.length - 1].role !== 'user') {
+          return jsonResponse({ error: 'No user message provided' }, 400);
+        }
 
-        const parentSystem = `You translate a parent's plain-English request into structured edits for a kids' chore app. You ONLY output JSON. No prose, no markdown, no code fences.
+        const parentSystem = `You are a friendly assistant that helps a parent customize a kids' chore app by editing chores, rewards, goals, and settings. You have a short back-and-forth conversation and you ALWAYS respond with a SINGLE JSON object only. No prose outside JSON, no markdown, no code fences.
 
-Output exactly this shape:
-{"reply":"<one short friendly sentence describing what you did>","actions":[ ... ]}
+Response shape:
+{"reply":"<message to the parent>","actions":[ ... ]}
+
+How to behave:
+- When you have every REQUIRED detail, put the change(s) in "actions" and a short confirmation in "reply".
+- When required details are missing, return "actions":[] and ASK for them in "reply". Ask for all missing required items together as a short numbered list, and also briefly mention any OPTIONAL things they could set (e.g. a subtitle or icon).
+- NEVER guess or apply defaults for required fields. Only proceed once the parent has given them, or explicitly says to pick for them / use a default.
+- Use the whole conversation so far to remember earlier answers, then act once enough info is gathered.
+
+Required vs optional per action:
+- add_chore: REQUIRED title, xp (points), timeOfDay (morning|afternoon|evening). OPTIONAL subtitle, icon (you may choose a fitting single emoji without asking).
+- update_chore: REQUIRED match + at least one field to change.
+- add_reward: REQUIRED name, cost (points). OPTIONAL emoji (you may choose one).
+- update_reward: REQUIRED match + at least one field.
+- add_goal: REQUIRED text.
+- delete_chore / delete_reward / delete_goal: REQUIRED match.
+- set_setting: REQUIRED key and value.
 
 Allowed action objects (use ONLY these types and fields):
 - {"type":"add_chore","title":"...","subtitle":"...","icon":"<one emoji>","timeOfDay":"morning|afternoon|evening","xp":<int>}
@@ -138,9 +161,9 @@ Allowed action objects (use ONLY these types and fields):
 - {"type":"set_setting","key":"childName|xpPerChore|victorySongUrl|sillyVoiceEnabled","value":<string|int|bool>}
 
 Rules:
-- Only include fields you intend to change. Omit unknown/optional fields.
+- Only include fields you intend to set. Omit optional fields you weren't given (except an icon/emoji you chose).
 - For update_* and delete_*, "match" must be an existing item from the context below.
-- If the request is unclear or cannot be expressed with these actions, return an empty actions array and explain why in "reply".
+- If a request cannot be expressed with these actions, return "actions":[] and explain why in "reply".
 - Never invent destructive actions the parent did not ask for.
 
 Current family data (for matching):
@@ -162,7 +185,7 @@ ${JSON.stringify({
             model: 'claude-haiku-4-5',
             max_tokens: 1024,
             system: parentSystem,
-            messages: [{ role: 'user', content: prompt }],
+            messages: convo,
           }),
         });
 
