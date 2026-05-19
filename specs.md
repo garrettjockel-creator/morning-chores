@@ -128,7 +128,12 @@ Four tabs: **Chores**, **Rewards**, **Chat**, **Activities**.
   activities, prayer/Bible reading, and kindness. Text-to-speech reads
   responses aloud (OpenAI TTS through the Worker). Gated by `chatEnabled`.
 - **Activities:** screen-free activity ideas across categories
-  (outdoor, creative, learning, helping others, faith).
+  (outdoor, creative, learning, helping others, faith). Tapping any
+  idea fetches one short, concrete, kid-safe suggestion from the
+  Helper endpoint (e.g. tapping "Science experiment" returns a
+  specific experiment to try), read aloud, with an "Another idea!"
+  button for a fresh one. The Bible/Jesus/Draw cards instead show
+  curated stories from the built-in + custom `stories` pool.
 - **Reflections / journal:** a daily reflection entry per child.
 - **Victory song:** optional per-family `victorySongUrl` played on big wins.
 - **Themes:** selectable kid theme; first-run kid onboarding flow.
