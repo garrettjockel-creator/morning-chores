@@ -1029,7 +1029,7 @@ function aiLogAppend(html) {
   return div;
 }
 
-const AI_CONFIRM_TYPES = ['delete_chore', 'delete_reward', 'delete_goal'];
+const AI_CONFIRM_TYPES = ['delete_chore', 'delete_reward', 'delete_goal', 'delete_activity'];
 function aiNeedsConfirm(a) {
   return AI_CONFIRM_TYPES.includes(a.type) ||
     (a.type === 'update_chore' && a.active === false);
@@ -1061,6 +1061,7 @@ async function sendParentAI() {
           chores: chores,
           rewards: rewardsList,
           goals: goalTexts,
+          activities: activitiesList,
           settings: {
             childName: familyData.childName || '',
             xpPerChore: familyData.xpPerChore || 10,
@@ -1117,6 +1118,7 @@ function aiDescribe(a) {
   if (a.type === 'delete_chore') return 'Delete chore "' + a.match + '"';
   if (a.type === 'delete_reward') return 'Delete reward "' + a.match + '"';
   if (a.type === 'delete_goal') return 'Delete goal "' + a.match + '"';
+  if (a.type === 'delete_activity') return 'Delete activity "' + a.match + '"';
   if (a.type === 'update_chore' && a.active === false) return 'Disable chore "' + a.match + '"';
   return a.type;
 }
@@ -1207,6 +1209,34 @@ async function applyAiActions(actions) {
         if (!hit) { summary.push('no goal matching "' + a.match + '"'); continue; }
         await familyRef.collection('goals').doc(hit.id).delete();
         summary.push('deleted goal');
+      } else if (a.type === 'add_activity' && a.name) {
+        const okTags = ['inside','outside','solo','siblings','parent','drive'];
+        let tags = Array.isArray(a.tags) ? a.tags.filter(t => okTags.includes(t)) : [];
+        if (tags.length === 0) tags = ['inside','solo'];
+        await familyRef.collection('activities').doc().set({
+          name: String(a.name).trim(),
+          emoji: a.emoji ? String(a.emoji).trim() : '🎯',
+          tags: tags,
+        });
+        summary.push('added activity "' + a.name + '"');
+      } else if (a.type === 'update_activity') {
+        const act = aiFindByTitle(activitiesList, a.match);
+        if (!act) { summary.push('no activity matching "' + a.match + '"'); continue; }
+        const okTags = ['inside','outside','solo','siblings','parent','drive'];
+        const fields = {};
+        if (a.name != null) fields.name = String(a.name).trim();
+        if (a.emoji != null) fields.emoji = String(a.emoji).trim();
+        if (Array.isArray(a.tags)) {
+          const t = a.tags.filter(x => okTags.includes(x));
+          if (t.length) fields.tags = t;
+        }
+        if (Object.keys(fields).length) await familyRef.collection('activities').doc(act.id).update(fields);
+        summary.push('updated activity "' + act.name + '"');
+      } else if (a.type === 'delete_activity') {
+        const act = aiFindByTitle(activitiesList, a.match);
+        if (!act) { summary.push('no activity matching "' + a.match + '"'); continue; }
+        await familyRef.collection('activities').doc(act.id).delete();
+        summary.push('deleted activity "' + act.name + '"');
       } else if (a.type === 'set_setting') {
         const allowed = ['childName','xpPerChore','victorySongUrl','sillyVoiceEnabled'];
         if (!allowed.includes(a.key)) { summary.push('setting "' + a.key + '" not allowed'); continue; }
@@ -1309,6 +1339,7 @@ init();
       <button class="ai-chip" onclick="aiChip('add a reward called  for  points')">🎁 Add reward</button>
       <button class="ai-chip" onclick="aiChip('change the  reward to cost  points')">💲 Edit reward</button>
       <button class="ai-chip" onclick="aiChip('add a goal: ')">🎯 Add goal</button>
+      <button class="ai-chip" onclick="aiChip('add a screen-free activity idea called ')">💡 Add idea</button>
       <button class="ai-chip" onclick="aiChip('change the child name to ')">⚙️ Settings</button>
       <button class="ai-chip" onclick="aiHelp()">❓ What can you do?</button>
     </div>
@@ -1349,6 +1380,7 @@ function aiHelp() {
     '<li>Add, edit, or remove <strong>chores</strong> (name, time of day, points)</li>' +
     '<li>Add, edit, or remove <strong>rewards</strong> (name, emoji, point cost)</li>' +
     '<li>Add or remove <strong>goals</strong></li>' +
+    '<li>Add, edit, or remove screen-free <strong>activity ideas</strong> (name, emoji, tags)</li>' +
     '<li>Change <strong>settings</strong>: child name, points per chore, victory song, silly voice</li>' +
     '</ul>' +
     '<div style="margin-top:8px;color:#888;">Try: "add an evening chore to feed the dog worth 15 points" or "make the ice cream reward cost 300". Deletes and disabling a chore will ask you to confirm first.</div>' +

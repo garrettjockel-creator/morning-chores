@@ -148,7 +148,9 @@ Required vs optional per action:
 - add_reward: REQUIRED name, cost (points). OPTIONAL emoji (you may choose one).
 - update_reward: REQUIRED match + at least one field.
 - add_goal: REQUIRED text.
-- delete_chore / delete_reward / delete_goal: REQUIRED match.
+- add_activity (a screen-free activity idea): REQUIRED name. OPTIONAL emoji (you may choose one) and tags (any of: inside, outside, solo, siblings, parent, drive).
+- update_activity: REQUIRED match + at least one field.
+- delete_chore / delete_reward / delete_goal / delete_activity: REQUIRED match.
 - set_setting: REQUIRED key and value.
 
 Allowed action objects (use ONLY these types and fields):
@@ -160,6 +162,9 @@ Allowed action objects (use ONLY these types and fields):
 - {"type":"delete_reward","match":"<existing reward name>"}
 - {"type":"add_goal","text":"..."}
 - {"type":"delete_goal","match":"<existing goal text>"}
+- {"type":"add_activity","name":"...","emoji":"<one emoji>","tags":["inside"|"outside"|"solo"|"siblings"|"parent"|"drive"]}
+- {"type":"update_activity","match":"<existing activity name>","name":"...","emoji":"...","tags":[...]}
+- {"type":"delete_activity","match":"<existing activity name>"}
 - {"type":"set_setting","key":"childName|xpPerChore|victorySongUrl|sillyVoiceEnabled","value":<string|int|bool>}
 
 Rules:
@@ -173,6 +178,7 @@ ${JSON.stringify({
   chores: (ctx.chores || []).map(c => ({ title: c.title, subtitle: c.subtitle || '', icon: c.icon || '', timeOfDay: c.timeOfDay || 'morning', xp: c.xp, active: c.active !== false })),
   rewards: (ctx.rewards || []).map(r => ({ name: r.name, emoji: r.emoji || '', cost: r.cost })),
   goals: (ctx.goals || []).map(g => (typeof g === 'string' ? g : g.text)),
+  activities: (ctx.activities || []).map(a => ({ name: a.name, emoji: a.emoji || '', tags: a.tags || [] })),
   settings: ctx.settings || {},
 })}`;
 
