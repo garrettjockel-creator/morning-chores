@@ -156,6 +156,13 @@ Four tabs: **Chores**, **Rewards**, **Chat**, **Activities**.
   specific experiment to try), read aloud, with an "Another idea!"
   button for a fresh one. The Bible/Jesus/Draw cards instead show
   curated stories from the built-in + custom `stories` pool.
+  The Activities tab uses a dense responsive card grid grouped into
+  category sections in the default view (🌳 Outside → 🚗 Places to Go
+  → 👫 With Siblings → 👨‍👦 With a Grown-Up → 👤 On My Own → 🏠 Inside
+  → ✨ More Ideas); each activity is placed in exactly one bucket by
+  tag priority. Selecting a specific filter chip shows a single flat
+  grid of matches instead of the grouped sections. "🎲 Pick For Me!"
+  picks a random activity.
 - **Reflections / journal:** a daily reflection entry per child.
 - **Victory song:** optional per-family `victorySongUrl` played on big wins.
 - **Themes:** selectable kid theme; first-run kid onboarding flow.
